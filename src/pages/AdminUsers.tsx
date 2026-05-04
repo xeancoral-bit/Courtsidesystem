@@ -51,6 +51,7 @@ import {
   KeyRound,
   History,
   Download,
+  ArrowLeft,
 } from "lucide-react";
 
 type Role = "admin" | "owner" | "user";
@@ -349,7 +350,12 @@ export default function AdminUsers() {
             This area is restricted to platform administrators. If you believe this is a mistake,
             contact an existing admin to grant your account the role.
           </p>
-          <Button onClick={() => navigate("/")}>Back to home</Button>
+          <Button asChild variant="outline" className="mt-4">
+            <a href="http://localhost:8080/">
+              <ArrowLeft className="size-4 mr-2" />
+              Back to Portal
+            </a>
+          </Button>
         </main>
         <Footer />
       </div>
@@ -360,97 +366,114 @@ export default function AdminUsers() {
     adminCount <= 1 && rolesByUser.get(targetId)?.has("admin");
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#030303] text-foreground selection:bg-accent/30">
+
       <Navbar />
-      <main className="flex-1 container py-12">
-        <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
-          <div>
-            <span className="text-xs uppercase tracking-widest text-primary font-bold flex items-center gap-1.5">
-              <ShieldCheck className="size-3.5" /> Admin
-            </span>
-            <h1 className="font-display text-5xl md:text-6xl tracking-wider mt-1">
-              Users &amp; Roles
+      <main className="flex-1 container max-w-7xl py-12 space-y-12 animate-fade-in">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-8 border-b border-white/5">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Button 
+                asChild
+                variant="ghost" 
+                className="text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all group px-0 font-mono text-[10px] tracking-[0.3em] uppercase"
+              >
+                <a href="http://localhost:8080/">
+                  <ArrowLeft className="size-3 mr-2 group-hover:-translate-x-1 transition-transform" />
+                  BACK TO PORTAL
+                </a>
+              </Button>
+              <div className="h-4 w-px bg-white/10 mx-2" />
+              <div className="flex items-center gap-2">
+                <div className="size-1.5 rounded-full bg-accent shadow-glow-sm" />
+                <span className="text-[10px] font-mono tracking-[0.3em] text-accent uppercase">ADMIN_TERMINAL // USER_REGISTRY</span>
+              </div>
+            </div>
+            <h1 className="font-display text-7xl md:text-8xl tracking-tighter leading-[0.85] uppercase">
+              USER_<span className="text-gradient">NODES</span>
             </h1>
-            <p className="text-muted-foreground mt-2">
-              Manage who can sign in, run facilities, or administer the platform. All role changes
-              are server-validated and recorded in the audit log.
+            <p className="max-w-xl text-sm text-muted-foreground/60 leading-relaxed font-mono tracking-tight">
+              Central authorization registry. Manage node permissions, security credentials, and operational audits across the Courtside network.
             </p>
           </div>
-          <Button variant="outline" onClick={() => setShowAudit((v) => !v)}>
-            <History className="size-4" />
-            {showAudit ? "Hide audit log" : "View audit log"}
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAudit((v) => !v)}
+              className={`h-14 px-8 rounded-2xl border-white/10 font-mono text-[10px] tracking-[0.2em] uppercase transition-all duration-500 ${showAudit ? 'bg-accent text-accent-foreground border-accent shadow-glow' : 'hover:bg-white/5'}`}
+            >
+              <History className={`size-4 mr-2 ${showAudit ? 'animate-spin-slow' : ''}`} />
+              {showAudit ? "TERMINATE_AUDIT" : "INITIALIZE_AUDIT_STREAM"}
+            </Button>
+          </div>
         </div>
 
-        {/* Stat cards / Quick filters */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {/* Analytics Hub */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <FilterCard
             icon={Users}
-            label="Total accounts"
+            label="TOTAL_REGISTRY"
             value={counts.total.toString()}
             active={roleFilter === "all"}
             onClick={() => setRoleFilter("all")}
           />
           <FilterCard
             icon={ShieldCheck}
-            label="Admins"
+            label="SUPERUSER_NODES"
             value={counts.admins.toString()}
-            tone="destructive"
             active={roleFilter === "admin"}
             onClick={() => setRoleFilter("admin")}
+            isAccent
           />
           <FilterCard
             icon={UserCog}
-            label="Owners"
+            label="OPERATOR_NODES"
             value={counts.owners.toString()}
-            tone="accent"
             active={roleFilter === "owner"}
             onClick={() => setRoleFilter("owner")}
           />
           <FilterCard
             icon={UserPlus}
-            label="Users only"
+            label="CONSUMER_NODES"
             value={counts.users.toString()}
             active={roleFilter === "user"}
             onClick={() => setRoleFilter("user")}
           />
         </div>
 
-        {/* Search + active filter chip */}
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <div className="relative max-w-md flex-1 min-w-[240px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+        {/* Search & Filter Controls */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="relative flex-1 min-w-[320px] group">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/40 group-focus-within:text-accent transition-colors" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, phone, or user ID…"
-              className="pl-9 pr-9"
-              aria-label="Search users"
+              placeholder="SEARCH BY IDENTIFIER, COORDINATES, OR METADATA..."
+              className="h-16 pl-14 pr-14 bg-white/5 border-white/5 rounded-2xl font-mono text-xs tracking-wider focus:border-accent/50 focus:ring-accent/20 transition-all placeholder:opacity-20"
             />
             {search && (
               <button
-                type="button"
                 onClick={() => setSearch("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Clear search"
+                className="absolute right-4 top-1/2 -translate-y-1/2 size-8 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
               >
-                <XCircle className="size-4" />
+                <XCircle className="size-4 text-muted-foreground" />
               </button>
             )}
           </div>
           {roleFilter !== "all" && (
             <Badge
               variant="outline"
-              className="gap-1.5 cursor-pointer"
+              className="h-16 px-6 gap-3 rounded-2xl border-accent/30 bg-accent/5 text-accent font-mono text-[10px] tracking-widest uppercase cursor-pointer hover:bg-accent/10 transition-all"
               onClick={() => setRoleFilter("all")}
             >
-              Filter: {roleFilter}
-              <XCircle className="size-3" />
+              FILTER_ACTIVE: {roleFilter}
+              <XCircle className="size-3.5" />
             </Badge>
           )}
         </div>
 
-        {/* Audit log panel */}
+        {/* Audit Log Panel */}
         {showAudit && (() => {
           const filteredAudit = audit.filter((a) => {
             if (auditAction !== "all" && a.action !== auditAction) return false;
@@ -460,16 +483,7 @@ export default function AdminUsers() {
             if (q) {
               const adminName = profileById.get(a.admin_user_id)?.display_name || "";
               const targetName = profileById.get(a.target_user_id)?.display_name || "";
-              const hay = [
-                adminName,
-                targetName,
-                a.admin_user_id,
-                a.target_user_id,
-                a.role ?? "",
-                a.action,
-              ]
-                .join(" ")
-                .toLowerCase();
+              const hay = [adminName, targetName, a.admin_user_id, a.target_user_id, a.role ?? "", a.action].join(" ").toLowerCase();
               if (!hay.includes(q)) return false;
             }
             return true;
@@ -488,362 +502,252 @@ export default function AdminUsers() {
               target_id: a.target_user_id,
               target_name: profileById.get(a.target_user_id)?.display_name ?? "",
             }));
-            downloadCSV(
-              `admin-audit-${new Date().toISOString().slice(0, 10)}.csv`,
-              toCSV(rows, [
-                "timestamp",
-                "action",
-                "role",
-                "admin_id",
-                "admin_name",
-                "target_id",
-                "target_name",
-              ]),
-            );
-            toast.success(`Exported ${rows.length} audit ${rows.length === 1 ? "entry" : "entries"}`);
+            downloadCSV(`audit-log-${format(new Date(), "yyyy-MM-dd")}.csv`, toCSV(rows, ["timestamp", "action", "role", "admin_id", "admin_name", "target_id", "target_name"]));
+            toast.success("METADATA_EXPORT_COMPLETE");
           };
           return (
-          <section className="bg-card-gradient border border-border rounded-2xl p-5 shadow-card mb-8">
-            <div className="flex items-center gap-2 mb-4 flex-wrap">
-              <History className="size-4 text-primary" />
-              <h2 className="font-display text-2xl tracking-wider">Recent admin actions</h2>
-              <span className="text-xs text-muted-foreground">
-                Showing {sortedAudit.length} of last {audit.length}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportAudit}
-                disabled={sortedAudit.length === 0}
-                className="ml-auto"
-              >
-                <Download className="size-4" /> Export CSV
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-              <div className="relative md:col-span-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  value={auditSearch}
-                  onChange={(e) => setAuditSearch(e.target.value)}
-                  placeholder="Search admin or target name / ID…"
-                  className="pl-9"
-                  aria-label="Search audit entries"
-                />
+            <section className="animate-in slide-in-from-top-4 duration-500 bg-card/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-10 shadow-elevated">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <History className="size-5 text-accent animate-pulse" />
+                    <h2 className="font-display text-4xl tracking-tighter uppercase">AUDIT_STREAM</h2>
+                  </div>
+                  <p className="text-[10px] font-mono tracking-widest text-muted-foreground/60 uppercase">
+                    INLINE_MODIFICATIONS // {sortedAudit.length} RECORDS_PARSED
+                  </p>
+                </div>
+                <Button variant="outline" size="lg" onClick={exportAudit} disabled={sortedAudit.length === 0} className="h-12 px-6 rounded-xl border-white/10 font-mono text-[10px] tracking-widest uppercase bg-white/5 hover:bg-white/10">
+                  <Download className="size-4 mr-2" /> EXPORT_CSV
+                </Button>
               </div>
-              <Select value={auditAction} onValueChange={(v) => setAuditAction(v as typeof auditAction)}>
-                <SelectTrigger aria-label="Filter by action">
-                  <SelectValue placeholder="Action" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All actions</SelectItem>
-                  <SelectItem value="grant">Grant</SelectItem>
-                  <SelectItem value="revoke">Revoke</SelectItem>
-                  <SelectItem value="password_reset">Password reset</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={auditFrom}
-                  onChange={(e) => setAuditFrom(e.target.value)}
-                  aria-label="From date"
-                />
-                <Input
-                  type="date"
-                  value={auditTo}
-                  onChange={(e) => setAuditTo(e.target.value)}
-                  aria-label="To date"
-                />
-              </div>
-            </div>
 
-            {sortedAudit.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No audit entries match your filters.
-              </p>
-            ) : (
-              <div className="overflow-auto">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="relative md:col-span-2">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/30" />
+                  <Input
+                    value={auditSearch}
+                    onChange={(e) => setAuditSearch(e.target.value)}
+                    placeholder="SCAN_RECORDS..."
+                    className="h-12 pl-11 bg-black/20 border-white/5 rounded-xl font-mono text-[10px] tracking-widest"
+                  />
+                </div>
+                <Select value={auditAction} onValueChange={(v) => setAuditAction(v as typeof auditAction)}>
+                  <SelectTrigger className="h-12 bg-black/20 border-white/5 rounded-xl font-mono text-[10px] tracking-widest uppercase">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card/95 backdrop-blur-xl border-white/10">
+                    <SelectItem value="all" className="font-mono text-[10px] tracking-widest uppercase">ALL_ACTIONS</SelectItem>
+                    <SelectItem value="grant" className="font-mono text-[10px] tracking-widest uppercase">GRANT</SelectItem>
+                    <SelectItem value="revoke" className="font-mono text-[10px] tracking-widest uppercase">REVOKE</SelectItem>
+                    <SelectItem value="password_reset" className="font-mono text-[10px] tracking-widest uppercase">PW_RESET</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <Input type="date" value={auditFrom} onChange={(e) => setAuditFrom(e.target.value)} className="h-12 bg-black/20 border-white/5 rounded-xl font-mono text-[10px]" />
+                  <Input type="date" value={auditTo} onChange={(e) => setAuditTo(e.target.value)} className="h-12 bg-black/20 border-white/5 rounded-xl font-mono text-[10px]" />
+                </div>
+              </div>
+
+              <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-black/10">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <button
-                          onClick={() => setAuditSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-                          className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold hover:text-foreground transition-colors"
-                        >
-                          When {auditSortDir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />}
+                  <TableHeader className="bg-white/5">
+                    <TableRow className="border-white/5 hover:bg-transparent">
+                      <TableHead className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground h-12">
+                        <button onClick={() => setAuditSortDir((d) => (d === "asc" ? "desc" : "asc"))} className="flex items-center gap-2">
+                          TIMESTAMP <SortIcon k="joined" />
                         </button>
                       </TableHead>
-                      <TableHead>Admin</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Target</TableHead>
+                      <TableHead className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground h-12">ORIGIN_ADMIN</TableHead>
+                      <TableHead className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground h-12">ACTION_VECTOR</TableHead>
+                      <TableHead className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground h-12">TARGET_NODE</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sortedAudit.map((a) => {
-                      const adminName =
-                        profileById.get(a.admin_user_id)?.display_name ||
-                        a.admin_user_id.slice(0, 8).toUpperCase();
-                      const targetName =
-                        profileById.get(a.target_user_id)?.display_name ||
-                        a.target_user_id.slice(0, 8).toUpperCase();
+                      const adminName = profileById.get(a.admin_user_id)?.display_name || a.admin_user_id.slice(0, 8).toUpperCase();
+                      const targetName = profileById.get(a.target_user_id)?.display_name || a.target_user_id.slice(0, 8).toUpperCase();
                       return (
-                        <TableRow key={a.id}>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {formatDistanceToNow(parseISO(a.created_at), { addSuffix: true })}
+                        <TableRow key={a.id} className="border-white/5 hover:bg-white/[0.02] transition-colors">
+                          <TableCell className="font-mono text-[10px] text-muted-foreground/60 whitespace-nowrap">
+                            {formatDistanceToNow(parseISO(a.created_at), { addSuffix: true }).toUpperCase()}
                           </TableCell>
-                          <TableCell className="text-sm">{adminName}</TableCell>
+                          <TableCell className="font-display text-sm tracking-tight">{adminName}</TableCell>
                           <TableCell>
-                            <span
-                              className={`text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded border ${
-                                a.action === "grant"
-                                  ? "bg-primary/15 text-primary border-primary/30"
-                                  : a.action === "revoke"
-                                  ? "bg-destructive/15 text-destructive border-destructive/30"
-                                  : "bg-accent/15 text-accent border-accent/30"
-                              }`}
-                            >
-                              {a.action === "password_reset"
-                                ? "reset password"
-                                : `${a.action} ${a.role ?? ""}`}
-                            </span>
+                            <Badge className={`text-[9px] uppercase tracking-widest font-black h-5 border-none ${
+                              a.action === 'grant' ? 'bg-primary/10 text-primary' : a.action === 'revoke' ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent'
+                            }`}>
+                              {a.action === 'password_reset' ? 'RESET' : `${a.action} ${a.role ?? ''}`}
+                            </Badge>
                           </TableCell>
-                          <TableCell className="text-sm">{targetName}</TableCell>
+                          <TableCell className="font-display text-sm tracking-tight text-muted-foreground">{targetName}</TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
               </div>
-            )}
-          </section>
+            </section>
           );
         })()}
 
-        {/* User table */}
-        {filtered.length === 0 ? (
-          <div className="empty-court bg-card-gradient border border-border rounded-2xl p-12 text-center">
-            <Users className="size-10 text-primary/60 mx-auto mb-3" />
-            <p className="text-muted-foreground">No users match your filters.</p>
+        {/* Main Registry Table */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className="size-1.5 rounded-full bg-primary" />
+              <h2 className="font-display text-4xl tracking-tighter uppercase">REGISTRY_OUTPUT</h2>
+            </div>
+            <p className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground/40 uppercase">
+              LIVE_DATA_FEED // ENCRYPTED_HANDSHAKE
+            </p>
           </div>
-        ) : (
-          <div className="bg-card-gradient border border-border rounded-2xl shadow-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <button
-                      onClick={() => toggleSort("name")}
-                      className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold hover:text-foreground transition-colors"
-                    >
-                      Name <SortIcon k="name" />
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      onClick={() => toggleSort("joined")}
-                      className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold hover:text-foreground transition-colors"
-                    >
-                      Joined <SortIcon k="joined" />
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      onClick={() => toggleSort("role")}
-                      className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold hover:text-foreground transition-colors"
-                    >
-                      Roles <SortIcon k="role" />
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((p) => {
-                  const userRoles = rolesByUser.get(p.id) || new Set<Role>();
-                  const isSelf = p.id === user?.id;
-                  const isAdminUser = userRoles.has("admin");
-                  const isOwnerUser = userRoles.has("owner");
-                  const blockRevokeAdmin = isAdminUser && (isSelf || lastAdminGuard(p.id));
-                  return (
-                    <TableRow key={p.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium truncate">
-                            {p.display_name || "Unnamed user"}
-                          </span>
-                          {isSelf && (
-                            <Badge variant="outline" className="text-[10px] uppercase tracking-widest">
-                              You
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-3">
-                          <span className="font-mono opacity-70">
-                            {p.id.slice(0, 8).toUpperCase()}
-                          </span>
-                          {p.phone && <span>{p.phone}</span>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {format(parseISO(p.created_at), "PP")}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(["admin", "owner", "user"] as Role[]).map((r) =>
-                            userRoles.has(r) ? (
-                              <span
-                                key={r}
-                                className={`text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded border ${ROLE_BADGE[r]}`}
-                              >
-                                {r}
+
+          <div className="bg-card/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] overflow-hidden shadow-elevated">
+            {filtered.length === 0 ? (
+              <div className="py-32 text-center space-y-4">
+                <Users className="size-12 text-muted-foreground/10 mx-auto" />
+                <p className="font-mono text-xs tracking-widest text-muted-foreground/40 uppercase">NO_MATCHING_NODES_FOUND</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader className="bg-white/5">
+                  <TableRow className="border-white/5 hover:bg-transparent">
+                    <TableHead className="h-16 px-8">
+                      <button onClick={() => toggleSort("name")} className="flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase text-muted-foreground hover:text-white transition-colors">
+                        NODE_IDENTIFIER <SortIcon k="name" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="h-16">
+                      <button onClick={() => toggleSort("joined")} className="flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase text-muted-foreground hover:text-white transition-colors">
+                        REGISTRATION_DATE <SortIcon k="joined" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="h-16">
+                      <button onClick={() => toggleSort("role")} className="flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase text-muted-foreground hover:text-white transition-colors">
+                        PERMISSIONS <SortIcon k="role" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="h-16 text-right px-8 font-mono text-[10px] tracking-widest uppercase text-muted-foreground">VECTORS</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((p) => {
+                    const userRoles = rolesByUser.get(p.id) || new Set<Role>();
+                    const isSelf = p.id === user?.id;
+                    const isAdminUser = userRoles.has("admin");
+                    const isOwnerUser = userRoles.has("owner");
+                    const blockRevokeAdmin = isAdminUser && (isSelf || lastAdminGuard(p.id));
+                    return (
+                      <TableRow key={p.id} className="border-white/5 hover:bg-white/[0.02] transition-colors group">
+                        <TableCell className="px-8 py-6">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-3">
+                              <span className="font-display text-xl tracking-tight text-white group-hover:text-accent transition-colors">
+                                {p.display_name || "UNIDENTIFIED_NODE"}
                               </span>
-                            ) : null,
-                          )}
-                          {userRoles.size === 0 && (
-                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                              No roles
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2 justify-end">
-                          {isOwnerUser ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setConfirm({
-                                  kind: "revoke",
-                                  userId: p.id,
-                                  role: "owner",
-                                  name: p.display_name || "this user",
-                                })
-                              }
-                            >
-                              <UserMinus className="size-4" /> Revoke owner
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setConfirm({
-                                  kind: "grant",
-                                  userId: p.id,
-                                  role: "owner",
-                                  name: p.display_name || "this user",
-                                })
-                              }
-                            >
-                              <UserPlus className="size-4" /> Make owner
-                            </Button>
-                          )}
+                              {isSelf && (
+                                <Badge className="bg-accent/10 text-accent text-[8px] font-black tracking-widest border-none px-2 h-4">ORIGIN</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 font-mono text-[10px] text-muted-foreground/40 tracking-wider">
+                              <span className="text-accent/40">ID:{p.id.slice(0, 12).toUpperCase()}</span>
+                              {p.phone && <span>TL:{p.phone}</span>}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-xs text-muted-foreground tracking-tighter">
+                            {format(parseISO(p.created_at), "MMM_dd_yyyy").toUpperCase()}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            {(["admin", "owner", "user"] as Role[]).map((r) =>
+                              userRoles.has(r) ? (
+                                <Badge key={r} className={`text-[9px] font-black tracking-widest border-none h-6 px-3 ${ROLE_BADGE[r]}`}>
+                                  {r.toUpperCase()}
+                                </Badge>
+                              ) : null,
+                            )}
+                            {userRoles.size === 0 && (
+                              <span className="text-[10px] font-mono tracking-widest text-muted-foreground/20 uppercase">NO_PRIVILEGES</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-8">
+                          <div className="flex items-center justify-end gap-2">
+                            {isOwnerUser ? (
+                              <Button variant="ghost" size="sm" onClick={() => setConfirm({ kind: "revoke", userId: p.id, role: "owner", name: p.display_name || "this user" })} className="h-9 rounded-xl border border-white/5 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 text-[10px] font-mono tracking-widest uppercase">
+                                <UserMinus className="size-3.5 mr-2" /> REVOKE_OWNER
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => setConfirm({ kind: "grant", userId: p.id, role: "owner", name: p.display_name || "this user" })} className="h-9 rounded-xl border border-white/5 hover:bg-accent/10 hover:text-accent hover:border-accent/20 text-[10px] font-mono tracking-widest uppercase">
+                                <UserPlus className="size-3.5 mr-2" /> GRANT_OWNER
+                              </Button>
+                            )}
 
-                          {isAdminUser ? (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={blockRevokeAdmin}
-                              title={
-                                isSelf
-                                  ? "You can't revoke your own admin role"
-                                  : lastAdminGuard(p.id)
-                                  ? "Cannot revoke the last remaining admin"
-                                  : undefined
-                              }
-                              onClick={() =>
-                                setConfirm({
-                                  kind: "revoke",
-                                  userId: p.id,
-                                  role: "admin",
-                                  name: p.display_name || "this user",
-                                })
-                              }
-                            >
-                              <ShieldAlert className="size-4" /> Revoke admin
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                setConfirm({
-                                  kind: "grant",
-                                  userId: p.id,
-                                  role: "admin",
-                                  name: p.display_name || "this user",
-                                })
-                              }
-                            >
-                              <ShieldCheck className="size-4" /> Make admin
-                            </Button>
-                          )}
+                            {isAdminUser ? (
+                              <Button variant="ghost" size="sm" disabled={blockRevokeAdmin} onClick={() => setConfirm({ kind: "revoke", userId: p.id, role: "admin", name: p.display_name || "this user" })} className="h-9 rounded-xl border border-white/5 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 text-[10px] font-mono tracking-widest uppercase">
+                                <ShieldAlert className="size-3.5 mr-2" /> REVOKE_ROOT
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => setConfirm({ kind: "grant", userId: p.id, role: "admin", name: p.display_name || "this user" })} className="h-9 rounded-xl border border-white/5 hover:bg-primary/10 hover:text-primary hover:border-primary/20 text-[10px] font-mono tracking-widest uppercase">
+                                <ShieldCheck className="size-3.5 mr-2" /> GRANT_ROOT
+                              </Button>
+                            )}
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              setConfirm({
-                                kind: "reset",
-                                userId: p.id,
-                                name: p.display_name || "this user",
-                              })
-                            }
-                          >
-                            <KeyRound className="size-4" /> Reset password
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                            <Button variant="ghost" size="icon" onClick={() => setConfirm({ kind: "reset", userId: p.id, name: p.display_name || "this user" })} className="size-9 rounded-xl border border-white/5 hover:bg-white/10" title="Trigger Password Reset">
+                              <KeyRound className="size-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </div>
-        )}
-
-        <p className="text-xs text-muted-foreground mt-6">
-          Note: every account keeps the base <code>user</code> role. Granting <code>owner</code>{" "}
-          unlocks the Owner Dashboard; granting <code>admin</code> additionally unlocks this page.
-          The system always keeps at least one admin.
-        </p>
+        </div>
       </main>
 
+      {/* Confirmation Modals */}
       <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirm?.kind === "reset"
-                ? "Send password reset email"
-                : `${confirm?.kind === "grant" ? "Grant" : "Revoke"} ${
-                    confirm && "role" in confirm ? confirm.role : ""
-                  } role`}
+        <AlertDialogContent className="bg-card/95 backdrop-blur-2xl border-white/10 rounded-[2.5rem] p-10 max-w-lg shadow-elevated">
+          <AlertDialogHeader className="mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`size-1.5 rounded-full shadow-glow-sm ${confirm?.kind === 'revoke' ? 'bg-destructive' : 'bg-accent'}`} />
+              <span className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground uppercase">SYSTEM_AUTHORIZATION</span>
+            </div>
+            <AlertDialogTitle className="font-display text-4xl tracking-tighter uppercase leading-none">
+              {confirm?.kind === "grant" ? "CONFIRM_ELEVATION" : confirm?.kind === "revoke" ? "CONFIRM_RESTRICTION" : "CONFIRM_RESET"}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirm?.kind === "reset"
-                ? `Send a password reset email to ${confirm.name}? They will receive a secure link to choose a new password.`
-                : confirm?.kind === "grant"
-                ? `Give ${confirm.name} the ${confirm.role} role? They'll get access immediately on their next request.`
-                : confirm?.kind === "revoke"
-                ? `Remove the ${confirm.role} role from ${confirm.name}? They'll lose access immediately.`
-                : ""}
+            <AlertDialogDescription className="text-sm font-mono tracking-tight text-muted-foreground/60 pt-4">
+              {confirm?.kind === "grant" ? (
+                <>Are you sure you want to grant <span className="text-accent">{confirm.role.toUpperCase()}</span> permissions to <span className="text-white">{confirm.name.toUpperCase()}</span>?</>
+              ) : confirm?.kind === "revoke" ? (
+                <>Proceed with revoking <span className="text-destructive">{confirm.role.toUpperCase()}</span> access from <span className="text-white">{confirm.name.toUpperCase()}</span>?</>
+              ) : (
+                <>Trigger a secure credential reset link for <span className="text-white">{confirm?.name?.toUpperCase()}</span>?</>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="gap-3">
+            <AlertDialogCancel className="h-14 px-8 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 font-mono text-[10px] tracking-widest uppercase transition-all">TERMINATE_OP</AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => {
+              className={`h-14 px-8 rounded-2xl font-mono text-[10px] tracking-widest uppercase shadow-glow transition-all ${
+                confirm?.kind === "revoke" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "bg-accent text-accent-foreground hover:bg-accent/90"
+              }`}
+              onClick={() => {
                 if (!confirm) return;
-                if (confirm.kind === "grant") await grantRole(confirm.userId, confirm.role);
-                else if (confirm.kind === "revoke") await revokeRole(confirm.userId, confirm.role);
-                else if (confirm.kind === "reset") await sendPasswordReset(confirm.userId);
+                if (confirm.kind === "grant") grantRole(confirm.userId, confirm.role);
+                else if (confirm.kind === "revoke") revokeRole(confirm.userId, confirm.role);
+                else sendPasswordReset(confirm.userId);
                 setConfirm(null);
               }}
             >
-              Confirm
+              EXECUTE_OVERRIDE
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -854,34 +758,53 @@ export default function AdminUsers() {
   );
 }
 
+
+
 function FilterCard({
   icon: Icon,
   label,
   value,
-  tone,
   active,
   onClick,
+  isAccent = false,
 }: {
   icon: any;
   label: string;
   value: string;
-  tone?: "accent" | "destructive";
-  active?: boolean;
-  onClick?: () => void;
+  active: boolean;
+  onClick: () => void;
+  isAccent?: boolean;
 }) {
-  const color =
-    tone === "destructive" ? "text-destructive" : tone === "accent" ? "text-accent" : "text-primary";
   return (
     <button
-      type="button"
       onClick={onClick}
-      className={`text-left bg-card-gradient border rounded-2xl p-5 shadow-card transition-all hover:border-primary/50 ${
-        active ? "border-primary ring-2 ring-primary/40" : "border-border"
+      className={`group relative overflow-hidden bg-card/40 backdrop-blur-xl border rounded-[2rem] p-8 text-left transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] shadow-card hover:shadow-elevated ${
+        active 
+          ? isAccent ? 'border-accent shadow-glow' : 'border-primary shadow-glow'
+          : 'border-white/5 hover:border-white/10'
       }`}
     >
-      <Icon className={`size-5 ${color} mb-2`} />
-      <div className="font-display text-3xl tracking-wider">{value}</div>
-      <div className="text-xs uppercase tracking-widest text-muted-foreground mt-1">{label}</div>
+      {active && (
+        <div className={`absolute inset-0 opacity-10 bg-gradient-to-br ${isAccent ? 'from-accent' : 'from-primary'} to-transparent`} />
+      )}
+      <div className="relative space-y-4">
+        <div className={`size-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${
+          active 
+            ? isAccent ? 'bg-accent text-accent-foreground' : 'bg-primary text-primary-foreground'
+            : 'bg-white/5 text-muted-foreground group-hover:bg-white/10 group-hover:text-white'
+        }`}>
+          <Icon className="size-6" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-[10px] font-mono tracking-[0.3em] text-muted-foreground group-hover:text-white/60 transition-colors uppercase">
+            {label}
+          </p>
+          <div className="flex items-baseline gap-2">
+            <span className="font-display text-5xl tracking-tighter">{value}</span>
+            <span className="text-[10px] font-mono text-muted-foreground/30 uppercase tracking-widest">NODES</span>
+          </div>
+        </div>
+      </div>
     </button>
   );
 }

@@ -13,7 +13,7 @@ import { formatPHP } from "@/lib/format";
 import { BookingTimeline, type BookingStatus } from "@/components/BookingTimeline";
 import { PaymentDialog } from "@/components/PaymentDialog";
 import { toast } from "sonner";
-import { Calendar, Clock, MapPin, X, CreditCard, Users, Receipt, Search, StickyNote, XCircle, SlidersHorizontal } from "lucide-react";
+import { Calendar, Clock, MapPin, X, CreditCard, Users, Receipt, Search, StickyNote, XCircle, SlidersHorizontal, ArrowLeft } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -212,6 +212,18 @@ export default function MyBookings() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1 container py-12">
+        <div className="mb-8 animate-fade-up">
+          <Button 
+            asChild 
+            variant="ghost" 
+            className="text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all group px-0 font-mono text-[10px] tracking-[0.3em] uppercase"
+          >
+            <a href="http://localhost:8080/">
+              <ArrowLeft className="size-3 mr-2 group-hover:-translate-x-1 transition-transform" />
+              BACK TO PORTAL
+            </a>
+          </Button>
+        </div>
         <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-3">My Bookings</h1>
         <p className="text-muted-foreground text-lg mb-8">Manage your reservations across Butuan City venues.</p>
 
@@ -431,12 +443,12 @@ function BookingRow({
     try {
       const stored = localStorage.getItem(`courtside:receiptNotes:${b.id}`);
       if (stored !== null) return stored === "1";
-    } catch {}
+    } catch { }
     // 2) last-used default for this session (sessionStorage)
     try {
       const last = sessionStorage.getItem("courtside:receiptNotes:lastUsed");
       if (last !== null) return last === "1";
-    } catch {}
+    } catch { }
     return true;
   });
   const updateIncludeNotes = (next: boolean) => {
@@ -444,7 +456,7 @@ function BookingRow({
     try {
       localStorage.setItem(`courtside:receiptNotes:${b.id}`, next ? "1" : "0");
       sessionStorage.setItem("courtside:receiptNotes:lastUsed", next ? "1" : "0");
-    } catch {}
+    } catch { }
   };
   const canShowReceipt = b.status === "paid" || b.status === "completed";
 

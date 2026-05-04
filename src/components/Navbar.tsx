@@ -20,7 +20,10 @@ import {
   Home,
   Building2,
   ShieldCheck,
+  User,
+  ArrowLeft,
 } from "lucide-react";
+
 import courtsideLogo from "@/assets/courtside-logo.png";
 
 interface NavItem {
@@ -47,11 +50,13 @@ export function Navbar() {
   const navItems: NavItem[] = [
     { to: "/", label: "Home", icon: Home, show: true },
     { to: "/facilities", label: "Facilities", icon: Building2, show: true },
-    { to: "/my-bookings", label: "My Bookings", icon: CalendarCheck, show: !!user },
-    { to: "/reminders", label: "Reminders", icon: Bell, show: !!user },
-    { to: "/owner", label: "Dashboard", icon: LayoutDashboard, show: !!user && isOwner },
-    { to: "/admin/users", label: "Admin", icon: ShieldCheck, show: !!user && isAdmin },
+    { to: "/customer", label: "User Hub", icon: User, show: !!user && !isOwner && !isAdmin },
+    { to: "/owner", label: "Owner Hub", icon: LayoutDashboard, show: !!user && isOwner && !isAdmin },
+    { to: "/admin/users", label: "Admin Hub", icon: ShieldCheck, show: !!user && isAdmin },
+    { to: "/my-bookings", label: "My Bookings", icon: CalendarCheck, show: !!user && !isAdmin },
+    { to: "/reminders", label: "Reminders", icon: Bell, show: !!user && !isAdmin },
   ];
+
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/70 border-b border-border supports-[backdrop-filter]:bg-background/60">
@@ -61,20 +66,23 @@ export function Navbar() {
           to="/"
           aria-label="Courtside — go to home"
           aria-current={isHome ? "page" : undefined}
-          className={`flex items-center group rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+          className={`flex items-center gap-2 group rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
             isHome ? "ring-1 ring-accent/40" : ""
           }`}
         >
           <img
             src={courtsideLogo}
-            alt="Courtside"
-            width={160}
+            alt="Logo"
+            width={40}
             height={40}
             decoding="async"
             loading="eager"
-            className="h-9 sm:h-10 w-auto group-hover:scale-105 transition-transform dark:brightness-0 dark:invert"
+            className="h-8 w-auto group-hover:scale-110 transition-transform dark:brightness-0 dark:invert"
             style={{ imageRendering: "auto" }}
           />
+          <span className="font-display text-xl font-bold tracking-widest text-white transition-opacity group-hover:opacity-80">
+            COURTSIDE
+          </span>
         </Link>
 
         {/* Desktop nav */}
@@ -104,6 +112,20 @@ export function Navbar() {
 
         {/* Right side actions */}
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="hidden lg:flex items-center gap-2 text-muted-foreground hover:text-accent font-mono text-[10px] tracking-[0.2em] uppercase"
+          >
+            <a href="http://localhost:8080/">
+              <ArrowLeft className="size-3" />
+              BACK TO PORTAL
+            </a>
+          </Button>
+
+          <div className="h-4 w-px bg-border/50 mx-2 hidden lg:block" />
+
           {user ? (
             <>
               <div className="hidden md:flex items-center gap-2">
@@ -180,7 +202,17 @@ export function Navbar() {
                   })}
               </nav>
 
-              <div className="mt-6 pt-6 border-t border-border">
+              <div className="mt-6 pt-6 border-t border-border flex flex-col gap-3">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 font-mono text-[10px] tracking-[0.2em] uppercase"
+                  asChild
+                >
+                  <a href="http://localhost:8080/">
+                    <ArrowLeft className="size-4" /> BACK TO PORTAL
+                  </a>
+                </Button>
+
                 {user ? (
                   <SheetClose asChild>
                     <Button

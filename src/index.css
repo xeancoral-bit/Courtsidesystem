@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Court & Gym — hardwood amber on deep court-green. All colors HSL. */
+/* Court & Gym — electric blue on deep court-green. All colors HSL. */
 
 @layer base {
   :root {
@@ -18,10 +18,10 @@
     --popover: 158 30% 9%;
     --popover-foreground: 40 25% 95%;
 
-    /* Hardwood amber — warm, energetic, gym-floor inspired */
-    --primary: 32 88% 55%;             /* #f0a23a hardwood amber */
+    /* Electric Blue — cool, energetic, and professional */
+    --primary: 221 83% 53%;             /* #3b82f6 bright blue */
     --primary-foreground: 158 40% 8%;
-    --primary-glow: 38 95% 65%;        /* glowing amber */
+    --primary-glow: 210 100% 70%;        /* glowing blue */
 
     --secondary: 158 28% 16%;          /* forest court green */
     --secondary-foreground: 40 25% 95%;
@@ -29,8 +29,8 @@
     --muted: 158 22% 13%;
     --muted-foreground: 40 12% 68%;
 
-    /* Basketball / referee whistle orange accent */
-    --accent: 18 92% 58%;              /* #f37438 basketball orange */
+    /* Court Blue / Whistle Blue accent */
+    --accent: 199 89% 48%;              /* #0ea5e9 cyan blue */
     --accent-foreground: 40 30% 98%;
 
     --destructive: 0 78% 58%;
@@ -38,30 +38,30 @@
 
     --border: 158 22% 18%;
     --input: 158 22% 14%;
-    --ring: 32 88% 60%;
+    --ring: 221 83% 60%;
 
     --radius: 0.875rem;
 
-    /* Brand gradients & shadows — sunset over a court */
-    --gradient-hero: linear-gradient(135deg, hsl(158 35% 11%) 0%, hsl(158 38% 6%) 45%, hsl(20 55% 14%) 100%);
-    --gradient-primary: linear-gradient(135deg, hsl(32 88% 55%), hsl(18 92% 58%));
+    /* Brand gradients & shadows — blue sky over a court */
+    --gradient-hero: linear-gradient(135deg, hsl(158 35% 11%) 0%, hsl(158 38% 6%) 45%, hsl(215 40% 14%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(199 89% 48%));
     --gradient-card: linear-gradient(160deg, hsl(158 28% 12% / 0.92), hsl(158 32% 7% / 0.92));
-    --gradient-glow: radial-gradient(ellipse at top, hsl(32 88% 55% / 0.18), transparent 60%);
+    --gradient-glow: radial-gradient(ellipse at top, hsl(221 83% 53% / 0.18), transparent 60%);
 
-    --shadow-glow: 0 0 60px hsl(32 88% 55% / 0.32);
+    --shadow-glow: 0 0 60px hsl(221 83% 53% / 0.32);
     --shadow-card: 0 20px 50px -20px hsl(158 60% 3% / 0.75);
-    --shadow-elevated: 0 30px 80px -30px hsl(32 88% 30% / 0.45);
+    --shadow-elevated: 0 30px 80px -30px hsl(221 83% 30% / 0.45);
 
     --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 158 32% 8%;
     --sidebar-foreground: 40 25% 90%;
-    --sidebar-primary: 32 88% 55%;
+    --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 158 40% 8%;
     --sidebar-accent: 158 22% 14%;
     --sidebar-accent-foreground: 40 25% 90%;
     --sidebar-border: 158 22% 18%;
-    --sidebar-ring: 32 88% 60%;
+    --sidebar-ring: 221 83% 60%;
   }
 }
 
@@ -96,7 +96,7 @@
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-elevated { box-shadow: var(--shadow-elevated); }
 
-  /* Court-themed empty-state backdrop: faint hardwood lines + amber glow */
+  /* Court-themed empty-state backdrop: faint hardwood lines + blue glow */
   .empty-court {
     background-image:
       radial-gradient(ellipse at top, hsl(var(--primary) / 0.10), transparent 60%),

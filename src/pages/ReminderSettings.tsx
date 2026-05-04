@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bell, Plus, Trash2, Mail, BellOff, Smartphone } from "lucide-react";
+import { Bell, Plus, Trash2, Mail, BellOff, Smartphone, ArrowLeft } from "lucide-react";
 
 interface Reminder {
   id: string;
@@ -124,6 +124,18 @@ export default function ReminderSettings() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1 container py-12 max-w-3xl">
+        <div className="mb-8 animate-fade-up">
+          <Button 
+            asChild 
+            variant="ghost" 
+            className="text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all group px-0 font-mono text-[10px] tracking-[0.3em] uppercase"
+          >
+            <a href="http://localhost:8080/">
+              <ArrowLeft className="size-3 mr-2 group-hover:-translate-x-1 transition-transform" />
+              BACK TO PORTAL
+            </a>
+          </Button>
+        </div>
         <div className="flex items-center gap-3 mb-2">
           <Bell className="size-6 text-accent" />
           <span className="text-xs uppercase tracking-widest text-accent font-bold">Notifications</span>
@@ -139,11 +151,10 @@ export default function ReminderSettings() {
           <div
             role="status"
             aria-live="polite"
-            className={`rounded-xl border px-4 py-3 mb-5 flex items-center gap-3 ${
-              mainEnabled
+            className={`rounded-xl border px-4 py-3 mb-5 flex items-center gap-3 ${mainEnabled
                 ? "border-accent/40 bg-accent/10 text-foreground"
                 : "border-destructive/40 bg-destructive/10 text-foreground"
-            }`}
+              }`}
           >
             {mainEnabled ? <Bell className="size-5 text-accent flex-shrink-0" /> : <BellOff className="size-5 text-destructive flex-shrink-0" />}
             <div className="flex-1 min-w-0">

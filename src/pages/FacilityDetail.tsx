@@ -12,7 +12,8 @@ import { formatPHP } from "@/lib/format";
 import { PaymentDialog } from "@/components/PaymentDialog";
 import { RecurringBookingDialog } from "@/components/RecurringBookingDialog";
 import { toast } from "sonner";
-import { MapPin, Clock, ArrowLeft, Users, Banknote } from "lucide-react";
+import { MapPin, Clock, ArrowLeft, Users, Banknote, Star, MessageSquare, Send } from "lucide-react";
+
 
 interface Facility {
   id: string;
@@ -40,6 +41,12 @@ export default function FacilityDetail() {
   const [pendingAmount, setPendingAmount] = useState(0);
   const [payOpen, setPayOpen] = useState(false);
   const [seriesOpen, setSeriesOpen] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [hasValidBooking, setHasValidBooking] = useState(false);
+
 
   useEffect(() => {
     if (!id) return;
@@ -48,7 +55,54 @@ export default function FacilityDetail() {
       if (data) document.title = `${data.name} · Courtside`;
       setLoading(false);
     });
-  }, [id]);
+
+    fetchReviews();
+    checkBookingHistory();
+  }, [id, user]);
+
+  const fetchReviews = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from("reviews" as any)
+      .select("*, profiles(display_name)")
+      .eq("facility_id", id)
+      .order("created_at", { ascending: false });
+    setReviews((data as any[]) || []);
+  };
+
+  const checkBookingHistory = async () => {
+    if (!id || !user) return;
+    const { count } = await supabase
+      .from("bookings")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("facility_id", id)
+      .in("status", ["paid", "completed"]);
+    setHasValidBooking((count || 0) > 0);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!id || !user || !reviewComment.trim()) return;
+    setSubmittingReview(true);
+    const { error } = await supabase
+      .from("reviews" as any)
+      .insert({
+        facility_id: id,
+        user_id: user.id,
+        rating: reviewRating,
+        comment: reviewComment.trim()
+      } as any);
+    
+    setSubmittingReview(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Feedback submitted. Thank you!");
+      setReviewComment("");
+      fetchReviews();
+    }
+  };
+
 
   const refreshSlots = () => {
     if (!id || !date) return;
@@ -149,14 +203,24 @@ export default function FacilityDetail() {
         <div className="relative h-[50vh] min-h-[400px] overflow-hidden">
           <img src={img} alt={facility.name} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/20" />
-          <div className="absolute inset-0 container flex flex-col justify-end pb-12">
-            <button onClick={() => navigate(-1)} className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-fit">
-              <ArrowLeft className="size-4" /> Back
-            </button>
-            <span className="px-3 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-bold uppercase tracking-wider w-fit mb-3">
-              {facility.sport_type}
-            </span>
-            <h1 className="font-display text-5xl md:text-7xl tracking-wider">{facility.name}</h1>
+        <div className="absolute inset-0 container flex flex-col justify-end pb-12">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate(-1)}
+              className="mb-4 text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all group px-0 font-mono text-[10px] tracking-[0.3em] uppercase w-fit"
+            >
+              <ArrowLeft className="size-3 mr-2 group-hover:-translate-x-1 transition-transform" />
+              BACK
+            </Button>
+            <div className="animate-fade-up">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-3 py-1 rounded-full bg-accent/90 text-accent-foreground text-[10px] font-black uppercase tracking-widest shadow-glow-sm">
+                  {facility.sport_type}
+                </span>
+                <div className="size-1.5 rounded-full bg-accent animate-pulse" />
+              </div>
+              <h1 className="font-display text-5xl md:text-8xl tracking-tighter leading-none mb-2 uppercase italic">{facility.name}</h1>
+            </div>
             <div className="flex flex-wrap gap-6 mt-4 text-sm">
               <div className="flex items-center gap-2"><MapPin className="size-4 text-accent" />{facility.location}</div>
               <div className="flex items-center gap-2"><Clock className="size-4 text-accent" />{facility.open_hour}:00 – {facility.close_hour}:00</div>
@@ -199,20 +263,92 @@ export default function FacilityDetail() {
                     key={h}
                     onClick={() => toggleHour(h)}
                     disabled={isBooked}
-                    className={`py-3 rounded-lg text-sm font-bold transition-all ${
-                      isBooked
+                    className={`py-3 rounded-lg text-sm font-bold transition-all ${isBooked
                         ? "bg-muted text-muted-foreground line-through cursor-not-allowed opacity-50"
                         : isSelected
-                        ? "bg-primary text-primary-foreground shadow-glow scale-105"
-                        : "bg-secondary text-secondary-foreground hover:bg-primary/40"
-                    }`}
+                          ? "bg-primary text-primary-foreground shadow-glow scale-105"
+                          : "bg-secondary text-secondary-foreground hover:bg-primary/40"
+                      }`}
                   >
                     {h}:00
                   </button>
                 );
               })}
             </div>
+
+            <div className="mt-16">
+              <div className="flex items-center gap-3 mb-8">
+                <MessageSquare className="size-8 text-accent" />
+                <h2 className="font-display text-4xl tracking-wider uppercase">Community Feedback</h2>
+              </div>
+
+              {user && hasValidBooking && (
+                <div className="bg-card-gradient border border-border rounded-2xl p-6 mb-10 shadow-glow/10">
+                  <h3 className="text-xl font-bold mb-4">Leave a review</h3>
+                  <div className="flex gap-2 mb-4">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setReviewRating(s)}
+                        className={`transition-all ${reviewRating >= s ? "text-accent scale-110" : "text-muted-foreground opacity-30"}`}
+                      >
+                        <Star className="size-6 fill-current" />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Share your experience with this facility..."
+                    className="w-full bg-secondary/30 border border-border rounded-xl p-4 text-sm focus:outline-none focus:border-accent min-h-[100px] mb-4"
+                  />
+                  <Button 
+                    onClick={handleSubmitReview} 
+                    disabled={submittingReview || !reviewComment.trim()}
+                    className="gap-2"
+                  >
+                    <Send className="size-4" /> {submittingReview ? "Posting..." : "Post Review"}
+                  </Button>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {reviews.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground border border-dashed border-border rounded-2xl">
+                    <p>No feedback yet. Be the first to review!</p>
+                  </div>
+                ) : (
+                  reviews.map((rev) => (
+                    <div key={rev.id} className="bg-secondary/20 border border-border/50 rounded-2xl p-6 transition-all hover:border-accent/30 group">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="size-10 rounded-full bg-accent/20 flex items-center justify-center font-bold text-accent border border-accent/30">
+                            {rev.profiles?.display_name?.charAt(0) || "U"}
+                          </div>
+                          <div>
+                            <p className="font-bold">{rev.profiles?.display_name || "Anonymous User"}</p>
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Verified Participant</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 text-accent">
+                          {Array.from({ length: rev.rating }).map((_, i) => (
+                            <Star key={i} className="size-3 fill-current" />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-sm leading-relaxed text-muted-foreground group-hover:text-foreground transition-colors italic">
+                        "{rev.comment}"
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-4 text-right">
+                        {format(new Date(rev.created_at), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
+
 
           <aside className="lg:sticky lg:top-24 h-fit bg-card-gradient border border-border rounded-2xl p-6 shadow-card">
             <h3 className="font-display text-2xl tracking-wider mb-4">Booking summary</h3>
