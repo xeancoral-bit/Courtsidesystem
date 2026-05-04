@@ -41,6 +41,7 @@ export default function CustomerUser() {
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState({ total: 0, spent: 0, upcoming: 0 });
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,6 +54,31 @@ export default function CustomerUser() {
   useEffect(() => {
     if (user) {
       loadDashboardData();
+      
+      // Subscribe to real-time notifications
+      const channel = supabase
+        .channel('schema-db-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('New notification:', payload);
+            setNotifications((prev) => [payload.new, ...prev]);
+            toast.info(payload.new.title, {
+              description: payload.new.description,
+            });
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [user]);
 
@@ -99,6 +125,16 @@ export default function CustomerUser() {
 
       setStats({ total, spent, upcoming });
       setRecentBookings(bookings.slice(0, 5));
+
+      // 3. Fetch Notifications
+      const { data: notes } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      
+      setNotifications(notes || []);
 
     } catch (error: any) {
       console.error("Dashboard data error:", error.message);
@@ -157,15 +193,15 @@ export default function CustomerUser() {
       <main className="flex-1 container py-8 max-w-7xl">
         {/* BACK BUTTON */}
         <div className="mb-8 animate-fade-up">
-          <Button 
-            asChild 
-            variant="ghost" 
+          <Button
+            asChild
+            variant="ghost"
             className="text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all group px-0 font-mono text-[10px] tracking-[0.3em] uppercase"
           >
-            <a href="http://localhost:8080/">
+            <Link to="/">
               <ArrowLeft className="size-3 mr-2 group-hover:-translate-x-1 transition-transform" />
-              BACK TO PORTAL
-            </a>
+              BACK TO CENTRAL HUB
+            </Link>
           </Button>
         </div>
 
@@ -228,73 +264,73 @@ export default function CustomerUser() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-             <div className="md:col-span-1 space-y-6">                 <Card className="bg-card-gradient border-border shadow-card hover:shadow-elevated transition-all group overflow-hidden relative border-l-4 border-l-accent h-full group/card">
+            <div className="md:col-span-1 space-y-6">
+              <Card className="bg-card-gradient border-border shadow-card hover:shadow-elevated transition-all group overflow-hidden relative border-l-4 border-l-accent h-full group/card">
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-all translate-x-4 -translate-y-4 group-hover:scale-110">
+                  <MapPin className="size-32 text-accent" />
+                </div>
+                <CardHeader className="relative z-10">
+                  <div className="size-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent mb-6 group-hover:scale-110 transition-transform shadow-glow-sm">
+                    <Search className="size-6" />
+                  </div>
+                  <CardTitle className="text-3xl tracking-tight mb-2">DISCOVER COURTS</CardTitle>
+                  <CardDescription className="text-sm leading-relaxed text-muted-foreground/80">Explore premium basketball, tennis, and badminton facilities across the city with real-time analytics.</CardDescription>
+                </CardHeader>
+                <CardContent className="mt-4 relative z-10">
+                  <Button asChild variant="link" className="text-accent p-0 font-black tracking-[0.2em] uppercase hover:no-underline group/btn">
+                    <Link to="/facilities" className="flex items-center gap-2">
+                      EXPLORE GRID <ChevronRight className="size-4 group-hover/btn:translate-x-2 transition-transform" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 h-full">
+                <Card className="bg-card-gradient border-border shadow-card hover:shadow-elevated transition-all group overflow-hidden relative border-l-4 border-l-primary group/card">
                   <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-all translate-x-4 -translate-y-4 group-hover:scale-110">
-                    <MapPin className="size-32 text-accent" />
+                    <Calendar className="size-32 text-primary" />
                   </div>
                   <CardHeader className="relative z-10">
-                    <div className="size-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent mb-6 group-hover:scale-110 transition-transform shadow-glow-sm">
-                      <Search className="size-6" />
+                    <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform shadow-glow-sm">
+                      <History className="size-6" />
                     </div>
-                    <CardTitle className="text-3xl tracking-tight mb-2">DISCOVER COURTS</CardTitle>
-                    <CardDescription className="text-sm leading-relaxed text-muted-foreground/80">Explore premium basketball, tennis, and badminton facilities across the city with real-time analytics.</CardDescription>
+                    <CardTitle className="text-3xl tracking-tight mb-2">YOUR REGISTRY</CardTitle>
+                    <CardDescription className="text-muted-foreground/80">Review your past triumphs and upcoming court appointments in the secure ledger.</CardDescription>
                   </CardHeader>
                   <CardContent className="mt-4 relative z-10">
-                    <Button asChild variant="link" className="text-accent p-0 font-black tracking-[0.2em] uppercase hover:no-underline group/btn">
-                      <Link to="/facilities" className="flex items-center gap-2">
-                        EXPLORE GRID <ChevronRight className="size-4 group-hover/btn:translate-x-2 transition-transform" />
+                    <Button asChild variant="link" className="text-primary p-0 font-black tracking-[0.2em] uppercase hover:no-underline group/btn">
+                      <Link to="/my-bookings" className="flex items-center gap-2">
+                        VIEW LEDGER <ChevronRight className="size-4 group-hover/btn:translate-x-2 transition-transform" />
                       </Link>
                     </Button>
                   </CardContent>
                 </Card>
 
-             </div>
-
-             <div className="md:col-span-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 h-full">                   <Card className="bg-card-gradient border-border shadow-card hover:shadow-elevated transition-all group overflow-hidden relative border-l-4 border-l-primary group/card">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-all translate-x-4 -translate-y-4 group-hover:scale-110">
-                      <Calendar className="size-32 text-primary" />
+                <Card className="bg-card-gradient border-border shadow-card hover:shadow-elevated transition-all group overflow-hidden relative border-l-4 border-l-muted group/card">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-all translate-x-4 -translate-y-4 group-hover:scale-110">
+                    <TrendingUp className="size-32 text-muted-foreground" />
+                  </div>
+                  <CardHeader className="relative z-10">
+                    <div className="size-12 rounded-xl bg-muted/20 flex items-center justify-center text-muted-foreground mb-6 group-hover:scale-110 transition-transform shadow-glow-sm">
+                      <Activity className="size-6" />
                     </div>
-                    <CardHeader className="relative z-10">
-                      <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform shadow-glow-sm">
-                        <History className="size-6" />
+                    <CardTitle className="text-3xl tracking-tight mb-2">PLAYER STATS</CardTitle>
+                    <CardDescription className="text-muted-foreground/80">Track your frequency and court spending with high-fidelity performance metrics.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="mt-4 relative z-10">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase text-muted-foreground tracking-[0.2em] font-black">TOTAL_EXPENDED</p>
+                        <p className="font-mono text-2xl text-accent font-bold tracking-tighter">{formatPHP(stats.spent)}</p>
                       </div>
-                      <CardTitle className="text-3xl tracking-tight mb-2">YOUR REGISTRY</CardTitle>
-                      <CardDescription className="text-muted-foreground/80">Review your past triumphs and upcoming court appointments in the secure ledger.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="mt-4 relative z-10">
-                      <Button asChild variant="link" className="text-primary p-0 font-black tracking-[0.2em] uppercase hover:no-underline group/btn">
-                        <Link to="/my-bookings" className="flex items-center gap-2">
-                          VIEW LEDGER <ChevronRight className="size-4 group-hover/btn:translate-x-2 transition-transform" />
-                        </Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-card-gradient border-border shadow-card hover:shadow-elevated transition-all group overflow-hidden relative border-l-4 border-l-muted group/card">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-all translate-x-4 -translate-y-4 group-hover:scale-110">
-                      <TrendingUp className="size-32 text-muted-foreground" />
+                      <Badge variant="outline" className="h-9 border-white/10 bg-white/5 backdrop-blur-md px-4 font-mono text-[10px] tracking-widest">TIER_BRONZE</Badge>
                     </div>
-                    <CardHeader className="relative z-10">
-                       <div className="size-12 rounded-xl bg-muted/20 flex items-center justify-center text-muted-foreground mb-6 group-hover:scale-110 transition-transform shadow-glow-sm">
-                        <Activity className="size-6" />
-                      </div>
-                      <CardTitle className="text-3xl tracking-tight mb-2">PLAYER STATS</CardTitle>
-                      <CardDescription className="text-muted-foreground/80">Track your frequency and court spending with high-fidelity performance metrics.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="mt-4 relative z-10">
-                      <div className="flex items-center justify-between">
-                         <div className="space-y-1">
-                           <p className="text-[10px] uppercase text-muted-foreground tracking-[0.2em] font-black">TOTAL_EXPENDED</p>
-                           <p className="font-mono text-2xl text-accent font-bold tracking-tighter">{formatPHP(stats.spent)}</p>
-                         </div>
-                         <Badge variant="outline" className="h-9 border-white/10 bg-white/5 backdrop-blur-md px-4 font-mono text-[10px] tracking-widest">TIER_BRONZE</Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                </div>
-             </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -492,26 +528,33 @@ export default function CustomerUser() {
                 <div className="size-7 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-[11px] font-black shadow-glow-sm">1</div>
               </div>
               <div className="space-y-4">
-                {[
-                  { title: "Network Established", time: "SYSTEM_CORE", desc: "Your player profile is now synchronized with the Butuan City facility network.", icon: Bell },
-                ].map((n, i) => (
-                  <div key={i} className="flex gap-5 p-5 rounded-2xl bg-card border border-border relative overflow-hidden group hover:border-accent/40 hover:bg-card/80 transition-all">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-accent shadow-[0_0_15px_hsl(var(--accent))]" />
-                    <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:scale-110 transition-transform">
-                      <n.icon className="size-5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-black tracking-tight group-hover:text-accent transition-colors uppercase">{n.title}</div>
-                      <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed font-medium">{n.desc}</div>
-                      <div className="flex items-center justify-between mt-4">
-                        <span className="text-[9px] font-black tracking-[0.2em] text-accent/80 uppercase">{n.time}</span>
-                        <span className="text-[10px] text-muted-foreground/40 font-mono italic flex items-center gap-1">
-                          <Activity className="size-3" /> ONLINE
-                        </span>
+                {notifications.length === 0 ? (
+                  <div className="p-10 rounded-2xl border border-dashed border-border text-center flex flex-col items-center justify-center opacity-60">
+                    <ZapOff className="size-8 text-muted-foreground mb-4" />
+                    <p className="text-[10px] font-black tracking-widest uppercase">No Transmissions</p>
+                  </div>
+                ) : (
+                  notifications.map((n, i) => (
+                    <div key={n.id || i} className="flex gap-5 p-5 rounded-2xl bg-card border border-border relative overflow-hidden group hover:border-accent/40 hover:bg-card/80 transition-all">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-accent shadow-[0_0_15px_hsl(var(--accent))]" />
+                      <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:scale-110 transition-transform">
+                        <Bell className="size-5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-black tracking-tight group-hover:text-accent transition-colors uppercase">{n.title}</div>
+                        <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed font-medium">{n.description}</div>
+                        <div className="flex items-center justify-between mt-4">
+                          <span className="text-[9px] font-black tracking-[0.2em] text-accent/80 uppercase">
+                            {format(parseISO(n.created_at), "HH:mm:ss")}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/40 font-mono italic flex items-center gap-1">
+                            <Activity className="size-3" /> ONLINE
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </section>
           </aside>

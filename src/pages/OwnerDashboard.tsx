@@ -257,10 +257,10 @@ export default function OwnerDashboard() {
             variant="ghost"
             className="text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all group px-0 font-mono text-[10px] tracking-[0.3em] uppercase"
           >
-            <a href="http://localhost:8080/">
+            <Link to="/">
               <ArrowLeft className="size-3 mr-2 group-hover:-translate-x-1 transition-transform" />
               BACK TO PORTAL
-            </a>
+            </Link>
           </Button>
         </div>
 

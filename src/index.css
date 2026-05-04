@@ -9,13 +9,13 @@
 @layer base {
   :root {
     /* Deep court-green base, like a polished gym floor in shadow */
-    --background: 158 32% 7%;
+    --background: 158 32% 5%;
     --foreground: 40 30% 95%;
 
-    --card: 158 28% 10%;
+    --card: 158 28% 8%;
     --card-foreground: 40 25% 95%;
 
-    --popover: 158 30% 9%;
+    --popover: 158 30% 7%;
     --popover-foreground: 40 25% 95%;
 
     /* Electric Blue — cool, energetic, and professional */
@@ -23,45 +23,39 @@
     --primary-foreground: 158 40% 8%;
     --primary-glow: 210 100% 70%;        /* glowing blue */
 
-    --secondary: 158 28% 16%;          /* forest court green */
+    --secondary: 158 28% 12%;          /* forest court green */
     --secondary-foreground: 40 25% 95%;
 
-    --muted: 158 22% 13%;
-    --muted-foreground: 40 12% 68%;
+    --muted: 158 22% 10%;
+    --muted-foreground: 40 12% 60%;
 
     /* Court Blue / Whistle Blue accent */
     --accent: 199 89% 48%;              /* #0ea5e9 cyan blue */
     --accent-foreground: 40 30% 98%;
 
-    --destructive: 0 78% 58%;
+    --destructive: 0 78% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 158 22% 18%;
-    --input: 158 22% 14%;
+    --border: 158 22% 14%;
+    --input: 158 22% 10%;
     --ring: 221 83% 60%;
 
-    --radius: 0.875rem;
+    --radius: 1rem;
 
     /* Brand gradients & shadows — blue sky over a court */
-    --gradient-hero: linear-gradient(135deg, hsl(158 35% 11%) 0%, hsl(158 38% 6%) 45%, hsl(215 40% 14%) 100%);
+    --gradient-hero: radial-gradient(circle at top left, hsl(158 35% 10%), transparent 40%),
+                     radial-gradient(circle at bottom right, hsl(221 83% 10%), transparent 40%),
+                     hsl(158 32% 5%);
     --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(199 89% 48%));
-    --gradient-card: linear-gradient(160deg, hsl(158 28% 12% / 0.92), hsl(158 32% 7% / 0.92));
-    --gradient-glow: radial-gradient(ellipse at top, hsl(221 83% 53% / 0.18), transparent 60%);
+    --gradient-card: linear-gradient(160deg, hsl(158 28% 10% / 0.8), hsl(158 32% 5% / 0.8));
+    --gradient-glow: radial-gradient(ellipse at top, hsl(221 83% 53% / 0.15), transparent 70%);
 
-    --shadow-glow: 0 0 60px hsl(221 83% 53% / 0.32);
-    --shadow-card: 0 20px 50px -20px hsl(158 60% 3% / 0.75);
-    --shadow-elevated: 0 30px 80px -30px hsl(221 83% 30% / 0.45);
+    --shadow-glow: 0 0 40px hsl(221 83% 53% / 0.25);
+    --shadow-glow-lg: 0 0 60px hsl(221 83% 53% / 0.35);
+    --shadow-card: 0 20px 50px -20px hsl(158 60% 2% / 0.8);
+    --shadow-elevated: 0 30px 80px -30px hsl(221 83% 20% / 0.4);
 
     --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-
-    --sidebar-background: 158 32% 8%;
-    --sidebar-foreground: 40 25% 90%;
-    --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 158 40% 8%;
-    --sidebar-accent: 158 22% 14%;
-    --sidebar-accent-foreground: 40 25% 90%;
-    --sidebar-border: 158 22% 18%;
-    --sidebar-ring: 221 83% 60%;
   }
 }
 
@@ -76,12 +70,28 @@
 
   body {
     @apply bg-background text-foreground font-body antialiased;
-    background-image: var(--gradient-glow);
+    background-image: var(--gradient-hero);
     background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-wide;
+    @apply font-display tracking-tight;
+  }
+
+  /* Custom Scrollbar for the Vault */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent) / 0.5);
   }
 }
 
@@ -90,13 +100,20 @@
     @apply bg-clip-text text-transparent;
     background-image: var(--gradient-primary);
   }
-  .bg-hero { background-image: var(--gradient-hero); }
-  .bg-card-gradient { background-image: var(--gradient-card); }
+  
+  .glass-card {
+    @apply bg-card/40 backdrop-blur-xl border border-white/5 shadow-card;
+  }
+
+  .glass-input {
+    @apply bg-black/20 backdrop-blur-md border border-white/10 focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all;
+  }
+
   .shadow-glow { box-shadow: var(--shadow-glow); }
+  .shadow-glow-lg { box-shadow: var(--shadow-glow-lg); }
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-elevated { box-shadow: var(--shadow-elevated); }
 
-  /* Court-themed empty-state backdrop: faint hardwood lines + blue glow */
   .empty-court {
     background-image:
       radial-gradient(ellipse at top, hsl(var(--primary) / 0.10), transparent 60%),
@@ -106,15 +123,33 @@
         transparent 1px 56px
       );
   }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
 }
 
-@layer base {
-  /* Court & Gym button polish: subtle lift on hover, press on active */
+@layer components {
   .btn-court {
-    transition: transform 150ms var(--transition-smooth),
-                box-shadow 200ms var(--transition-smooth),
-                background-color 150ms var(--transition-smooth);
+    @apply transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
   }
-  .btn-court:hover { box-shadow: var(--shadow-glow); transform: translateY(-1px); }
-  .btn-court:active { transform: translateY(0); }
+  
+  .nav-link-vault {
+    @apply relative text-muted-foreground hover:text-white transition-colors duration-300 font-mono text-[10px] tracking-[0.2em] uppercase;
+  }
+  
+  .nav-link-vault::after {
+    content: '';
+    @apply absolute -bottom-1 left-0 w-0 h-[1px] bg-accent transition-all duration-300;
+  }
+  
+  .nav-link-vault:hover::after {
+    @apply w-full;
+  }
 }
+
