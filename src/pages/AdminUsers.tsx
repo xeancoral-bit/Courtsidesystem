@@ -17,18 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  Cell,
-  AreaChart,
-  Area
-} from "recharts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,7 +48,6 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  TrendingUp,
   KeyRound,
   History,
   Download,
@@ -281,18 +268,6 @@ export default function AdminUsers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profiles, search, roleFilter, sortKey, sortDir, rolesByUser]);
 
-  const growthData = useMemo(() => {
-    const daily: Record<string, number> = {};
-    profiles.forEach(p => {
-      const date = format(parseISO(p.created_at), "MMM dd");
-      daily[date] = (daily[date] || 0) + 1;
-    });
-    return Object.entries(daily)
-      .map(([name, nodes]) => ({ name, nodes }))
-      .reverse()
-      .slice(-7);
-  }, [profiles]);
-
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -466,76 +441,6 @@ export default function AdminUsers() {
             onClick={() => setRoleFilter("user")}
           />
         </div>
-
-        {/* Analytics Growth Chart */}
-        <section className="bg-card/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-10 shadow-elevated overflow-hidden relative group">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-all pointer-events-none">
-            <TrendingUp className="size-64 text-accent" />
-          </div>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 relative z-10">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <div className="size-1.5 rounded-full bg-accent shadow-glow-sm" />
-                <h2 className="font-display text-4xl tracking-tighter uppercase">NODE_GROWTH_ANALYSIS</h2>
-              </div>
-              <p className="text-[10px] font-mono tracking-widest text-muted-foreground/60 uppercase">TEMPORAL_DISTRIBUTION // 7_DAY_WINDOW</p>
-            </div>
-            <div className="flex items-center gap-6">
-              <div className="text-right">
-                <p className="text-[10px] font-black tracking-widest text-muted-foreground/40 uppercase mb-1">AGGREGATE_FLUX</p>
-                <p className="text-2xl font-display text-accent">+{profiles.length} <span className="text-[10px] text-muted-foreground/40 font-mono">NODES</span></p>
-              </div>
-              <div className="size-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-accent">
-                <TrendingUp className="size-6" />
-              </div>
-            </div>
-          </div>
-
-          <div className="h-[300px] w-full relative z-10 pr-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={growthData}>
-                <defs>
-                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={0.8} />
-                    <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity={0.1} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: 'monospace' }}
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: 'monospace' }}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(10,10,10,0.9)', 
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                    backdropFilter: 'blur(10px)'
-                  }}
-                  itemStyle={{ color: 'hsl(var(--accent))' }}
-                />
-                <Bar 
-                  dataKey="nodes" 
-                  fill="url(#barGradient)" 
-                  radius={[6, 6, 0, 0]} 
-                  barSize={40}
-                  animationDuration={1500}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
 
         {/* Search & Filter Controls */}
         <div className="flex flex-wrap items-center gap-4">

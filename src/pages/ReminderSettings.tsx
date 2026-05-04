@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bell, Plus, Trash2, Mail, BellOff, Smartphone, ArrowLeft, Terminal, ShieldCheck, Activity, Radio, Signal, Wifi, Zap } from "lucide-react";
+import { Bell, Plus, Trash2, Mail, BellOff, Smartphone, ArrowLeft } from "lucide-react";
 
 interface Reminder {
   id: string;
@@ -33,10 +33,10 @@ const PRESETS = [
 ];
 
 const formatLeadTime = (m: number) => {
-  if (m < 60) return `${m} MIN BEFORE`;
-  if (m < 1440) return `${m / 60} HR BEFORE`;
-  if (m < 10080) return `${m / 1440} DAY${m === 1440 ? "" : "S"} BEFORE`;
-  return `${m / 10080} WEEK BEFORE`;
+  if (m < 60) return `${m} min before`;
+  if (m < 1440) return `${m / 60} hr before`;
+  if (m < 10080) return `${m / 1440} day${m === 1440 ? "" : "s"} before`;
+  return `${m / 10080} week before`;
 };
 
 export default function ReminderSettings() {
@@ -49,13 +49,14 @@ export default function ReminderSettings() {
   const [channel, setChannel] = useState<Channel>("in_app");
   const [mainEnabled, setMainEnabled] = useState(true);
 
-  useEffect(() => { document.title = "TEMPORAL_ALERTS // COURTSIDE"; }, []);
+  useEffect(() => { document.title = "Reminders · Courtside"; }, []);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { navigate("/auth"); return; }
     refresh();
-  }, [user, authLoading, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
 
   const refresh = async () => {
     if (!user) return;
@@ -65,8 +66,8 @@ export default function ReminderSettings() {
     ]);
     setReminders((rems as Reminder[]) || []);
     if (prof) {
-      setChannel((prof.reminder_channel as Channel) || "in_app");
-      setMainEnabled(prof.reminders_enabled ?? true);
+      setChannel(((prof as any).reminder_channel as Channel) || "in_app");
+      setMainEnabled((prof as any).reminders_enabled ?? true);
     }
     setLoading(false);
   };
@@ -76,7 +77,7 @@ export default function ReminderSettings() {
     setChannel(next);
     const { error } = await supabase.from("profiles").update({ reminder_channel: next }).eq("id", user.id);
     if (error) return toast.error(error.message);
-    toast.success(`DELIVERY_PROTOCOL_SET: ${next === "in_app" ? "INTERNAL_NODE" : "SMTP_RELAY"}`);
+    toast.success(`Delivery set to ${next === "in_app" ? "in-app" : "email"}`);
   };
 
   const updateMaster = async (next: boolean) => {
@@ -84,14 +85,14 @@ export default function ReminderSettings() {
     setMainEnabled(next);
     const { error } = await supabase.from("profiles").update({ reminders_enabled: next }).eq("id", user.id);
     if (error) return toast.error(error.message);
-    toast.success(next ? "TELEMETRY_ALERTS_ENGAGED" : "TELEMETRY_ALERTS_SUSPENDED");
+    toast.success(next ? "All reminders enabled" : "All reminders paused");
   };
 
   const addReminder = async () => {
     if (!user) return;
     const minutes = Number(newPreset);
     if (reminders.some((r) => r.minutes_before === minutes)) {
-      toast.error("DUPLICATE_TEMPORAL_THRESHOLD");
+      toast.error("Reminder already exists");
       return;
     }
     const { error } = await supabase.from("reminder_preferences").insert({
@@ -101,7 +102,7 @@ export default function ReminderSettings() {
       enabled: true,
     });
     if (error) return toast.error(error.message);
-    toast.success("THRESHOLD_LOGGED");
+    toast.success("Reminder added");
     setNewLabel("");
     refresh();
   };
@@ -116,194 +117,151 @@ export default function ReminderSettings() {
     const { error } = await supabase.from("reminder_preferences").delete().eq("id", id);
     if (error) return toast.error(error.message);
     setReminders((rs) => rs.filter((r) => r.id !== id));
-    toast.success("THRESHOLD_PURGED");
+    toast.success("Reminder removed");
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#030303] text-foreground selection:bg-accent/30">
+    <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 container max-w-4xl py-12 space-y-12 animate-fade-in">
-        {/* Header */}
-        <div className="flex flex-col gap-6 pb-8 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <Button 
-              asChild 
-              variant="ghost" 
-              className="text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all group px-0 font-mono text-[10px] tracking-[0.3em] uppercase"
-            >
-              <Link to="/">
-                <ArrowLeft className="size-3 mr-2 group-hover:-translate-x-1 transition-transform" />
-                BACK TO PORTAL
-              </Link>
-            </Button>
-            <div className="h-4 w-px bg-white/10 mx-2" />
-            <div className="flex items-center gap-2">
-              <div className="size-1.5 rounded-full bg-accent shadow-glow-sm" />
-              <span className="text-[10px] font-mono tracking-[0.3em] text-accent uppercase">SYSTEM_TELEMETRY // ALERTS</span>
-            </div>
-          </div>
-          <h1 className="font-display text-7xl md:text-8xl tracking-tighter leading-[0.85] uppercase">
-            TEMPORAL_<span className="text-gradient">ALERTS</span>
-          </h1>
-          <p className="max-w-xl text-sm text-muted-foreground/60 leading-relaxed font-mono tracking-tight">
-            Configure automated nodal transmissions for upcoming session allocations. Establish lead-time thresholds for synchronized operations.
-          </p>
+      <main className="flex-1 container py-12 max-w-3xl">
+        <div className="mb-8 animate-fade-up">
+          <Button 
+            asChild 
+            variant="ghost" 
+            className="text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all group px-0 font-mono text-[10px] tracking-[0.3em] uppercase"
+          >
+            <Link to="/">
+              <ArrowLeft className="size-3 mr-2 group-hover:-translate-x-1 transition-transform" />
+              BACK TO PORTAL
+            </Link>
+          </Button>
         </div>
+        <div className="flex items-center gap-3 mb-2">
+          <Bell className="size-6 text-accent" />
+          <span className="text-xs uppercase tracking-widest text-accent font-bold">Notifications</span>
+        </div>
+        <h1 className="font-display text-5xl md:text-6xl tracking-wider mb-3">Reminders</h1>
+        <p className="text-muted-foreground text-lg mb-8">
+          Choose when we should remind you about upcoming bookings and team series. You can enable as many lead times as you'd like.
+        </p>
 
-        {/* Master Control */}
-        <section className="bg-card/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-10 shadow-elevated relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Signal className="size-24" />
+        {/* Master switch + delivery channel — always visible (sticky) */}
+        <section className="sticky top-4 z-10 bg-card-gradient/95 backdrop-blur border border-border rounded-2xl p-5 shadow-card mb-6">
+          {/* Status banner */}
+          <div
+            role="status"
+            aria-live="polite"
+            className={`rounded-xl border px-4 py-3 mb-5 flex items-center gap-3 ${mainEnabled
+                ? "border-accent/40 bg-accent/10 text-foreground"
+                : "border-destructive/40 bg-destructive/10 text-foreground"
+              }`}
+          >
+            {mainEnabled ? <Bell className="size-5 text-accent flex-shrink-0" /> : <BellOff className="size-5 text-destructive flex-shrink-0" />}
+            <div className="flex-1 min-w-0">
+              <div className="font-display text-lg tracking-wider leading-tight">
+                {mainEnabled ? "Reminders are ON" : "Reminders are OFF"}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {mainEnabled
+                  ? "You'll receive every active lead time below using your selected delivery method."
+                  : "Delivery is disabled. Your reminders and lead times are saved — turn the master switch on to resume."}
+              </p>
+            </div>
+            <span className={`text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded ${mainEnabled ? "bg-accent text-accent-foreground" : "bg-destructive text-destructive-foreground"}`}>
+              {mainEnabled ? "On" : "Off"}
+            </span>
           </div>
 
-          <div className="space-y-10">
-            {/* Status Banner */}
-            <div className={`rounded-2xl border px-6 py-4 flex items-center gap-4 transition-all duration-500 ${
-              mainEnabled 
-                ? "border-accent/30 bg-accent/5" 
-                : "border-white/5 bg-white/2"
-            }`}>
-              <div className={`size-12 rounded-xl flex items-center justify-center ${mainEnabled ? "bg-accent shadow-glow" : "bg-white/5"}`}>
-                {mainEnabled ? <Bell className="size-6 text-accent-foreground" /> : <BellOff className="size-6 text-muted-foreground" />}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <div className={`size-1.5 rounded-full ${mainEnabled ? "bg-accent animate-pulse" : "bg-muted-foreground"}`} />
-                  <span className="font-mono text-[10px] tracking-[0.2em] uppercase font-black">
-                    SYSTEM_STATUS: {mainEnabled ? "OPERATIONAL" : "SUSPENDED"}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground/60 mt-1">
-                  {mainEnabled 
-                    ? "Transmissions are actively monitoring all temporal thresholds."
-                    : "Alert protocols are offline. All scheduled lead-times are currently paused."}
+          <div className="flex items-start justify-between gap-4 pb-5 border-b border-border">
+            <div className="flex gap-3">
+              {mainEnabled ? <Bell className="size-5 text-accent mt-1" /> : <BellOff className="size-5 text-muted-foreground mt-1" />}
+              <div>
+                <h2 className="font-display text-2xl tracking-wider">All reminders</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Master switch — pauses every reminder below without losing your settings.
                 </p>
               </div>
-              <Switch checked={mainEnabled} onCheckedChange={updateMaster} className="data-[state=checked]:bg-accent" />
             </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={mainEnabled} onCheckedChange={updateMaster} aria-label="Master reminders toggle" />
+              <span className="text-xs text-muted-foreground w-12">{mainEnabled ? "On" : "Off"}</span>
+            </div>
+          </div>
 
-            {/* Delivery Protocol */}
-            <div className={`space-y-4 ${!mainEnabled && "opacity-40 grayscale pointer-events-none transition-all duration-500"}`}>
-              <div className="flex items-center gap-2 ml-1">
-                <Wifi className="size-3 text-accent" />
-                <Label className="text-[10px] font-mono tracking-[0.3em] uppercase text-muted-foreground">Delivery_Protocol</Label>
-              </div>
-              <Select value={channel} onValueChange={(v) => updateChannel(v as Channel)}>
-                <SelectTrigger className="h-16 bg-white/5 border-white/5 rounded-2xl font-mono text-xs tracking-widest uppercase px-6 focus:ring-accent/20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-card/95 backdrop-blur-3xl border-white/10 rounded-2xl">
-                  <SelectItem value="in_app" className="font-mono text-xs tracking-widest uppercase">
-                    <div className="flex items-center gap-3 py-1"><Smartphone className="size-4 text-accent" /> INTERNAL_INTERFACE</div>
-                  </SelectItem>
-                  <SelectItem value="email" className="font-mono text-xs tracking-widest uppercase">
-                    <div className="flex items-center gap-3 py-1"><Mail className="size-4 text-accent" /> SMTP_RELAY (BETA)</div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              {channel === "email" && (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-accent/5 border border-accent/20">
-                  <Terminal className="size-3 text-accent" />
-                  <p className="text-[10px] font-mono text-accent/60 uppercase tracking-tight">
-                    NOTE: SMTP relay node is in staging. Preference saved.
-                  </p>
-                </div>
-              )}
-            </div>
+          <div className="pt-5">
+            <Label className={`mb-2 block ${!mainEnabled ? "opacity-60" : ""}`}>Delivery method</Label>
+            <Select value={channel} onValueChange={(v) => updateChannel(v as Channel)} disabled={!mainEnabled}>
+              <SelectTrigger className={`max-w-md ${!mainEnabled ? "opacity-60 cursor-not-allowed" : ""}`} aria-disabled={!mainEnabled}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="in_app">
+                  <div className="flex items-center gap-2"><Smartphone className="size-4" /> In-app notifications</div>
+                </SelectItem>
+                <SelectItem value="email">
+                  <div className="flex items-center gap-2"><Mail className="size-4" /> Email (coming soon)</div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {channel === "email" && mainEnabled && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Email delivery isn't connected yet — your preference is saved and will start sending once the sender domain is configured.
+              </p>
+            )}
+            {!mainEnabled && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Delivery selection is locked while reminders are off. Turn the master switch on to change it.
+              </p>
+            )}
           </div>
         </section>
 
-        {/* Add Reminder */}
-        <section className={`bg-card/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-10 shadow-elevated relative overflow-hidden transition-all duration-500 ${!mainEnabled && "opacity-20 grayscale pointer-events-none"}`}>
-          <div className="flex items-center gap-3 mb-8">
-            <Zap className="size-5 text-accent" />
-            <h2 className="font-display text-3xl tracking-tight uppercase">Initialize_Threshold</h2>
-          </div>
-          <div className="grid md:grid-cols-[200px_1fr_auto] gap-6 items-end">
-            <div className="space-y-2">
-              <Label className="text-[9px] font-mono tracking-[0.2em] uppercase text-muted-foreground ml-1">Temporal_Lead</Label>
+        <section className={`bg-card-gradient border border-border rounded-2xl p-5 shadow-card mb-6 ${!mainEnabled ? "opacity-50 pointer-events-none" : ""}`}>
+          <h2 className="font-display text-2xl tracking-wider mb-4">Add a reminder</h2>
+          <div className="grid sm:grid-cols-[200px_1fr_auto] gap-3 items-end">
+            <div>
+              <Label>Lead time</Label>
               <Select value={newPreset} onValueChange={setNewPreset}>
-                <SelectTrigger className="h-14 bg-white/5 border-white/5 rounded-xl font-mono text-[10px] tracking-widest uppercase">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-card/95 backdrop-blur-3xl border-white/10 rounded-xl">
-                  {PRESETS.map((p) => (
-                    <SelectItem key={p.minutes} value={String(p.minutes)} className="font-mono text-[10px] tracking-widest uppercase">
-                      {p.label}
-                    </SelectItem>
-                  ))}
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PRESETS.map((p) => <SelectItem key={p.minutes} value={String(p.minutes)}>{p.label} before</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label className="text-[9px] font-mono tracking-[0.2em] uppercase text-muted-foreground ml-1">Telemetry_Label (OPTIONAL)</Label>
-              <Input 
-                value={newLabel} 
-                onChange={(e) => setNewLabel(e.target.value)} 
-                placeholder="E.G. PRE_FLIGHT_MANIFEST" 
-                className="h-14 bg-white/5 border-white/5 rounded-xl font-mono text-[10px] tracking-widest placeholder:opacity-20"
-              />
+            <div>
+              <Label>Label (optional)</Label>
+              <Input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="e.g. Pre-game heads up" />
             </div>
-            <Button 
-              onClick={addReminder}
-              className="h-14 px-8 rounded-xl bg-accent text-accent-foreground font-black text-[10px] uppercase tracking-widest gap-2 shadow-glow hover:scale-105 transition-transform"
-            >
-              <Plus className="size-4" /> ADD_THRESHOLD
+            <Button onClick={addReminder} className="font-bold tracking-wider">
+              <Plus className="size-4" /> Add
             </Button>
           </div>
         </section>
 
-        {/* List */}
-        <section className="space-y-6">
-          <div className="flex items-center justify-between ml-2">
-            <div className="flex items-center gap-3">
-              <div className="h-4 w-1 bg-accent" />
-              <span className="font-mono text-[10px] tracking-[0.4em] text-muted-foreground/60 uppercase">ACTIVE_THRESHOLDS</span>
-            </div>
-            <span className="font-mono text-[10px] text-muted-foreground/30 uppercase tracking-[0.2em]">TOTAL_NODES: {reminders.length}</span>
-          </div>
-
+        <section>
+          <h2 className="font-display text-2xl tracking-wider mb-4">Active reminders</h2>
           {loading ? (
-            <div className="py-20 text-center space-y-4 animate-pulse">
-              <Terminal className="size-8 text-muted-foreground/10 mx-auto" />
-              <p className="font-mono text-[9px] tracking-[0.5em] text-muted-foreground/40 uppercase">SCANNING_PROTOCOLS...</p>
-            </div>
+            <div className="text-center py-10 text-muted-foreground">Loading…</div>
           ) : reminders.length === 0 ? (
-            <div className="py-20 text-center space-y-4 bg-card/40 backdrop-blur-3xl border border-dashed border-white/10 rounded-[2.5rem]">
-              <p className="font-mono text-[10px] tracking-[0.3em] text-muted-foreground/40 uppercase">NO_THRESHOLDS_DEFINED</p>
+            <div className="bg-card-gradient border border-border rounded-2xl p-10 text-center text-muted-foreground">
+              No reminders yet. Add one above to start receiving alerts before each booking.
             </div>
           ) : (
-            <div className={`grid gap-4 transition-all duration-500 ${!mainEnabled && "opacity-40 grayscale"}`}>
+            <div className={`grid gap-3 ${!mainEnabled ? "opacity-50" : ""}`}>
               {reminders.map((r) => (
-                <div key={r.id} className="bg-card/40 backdrop-blur-3xl border border-white/5 rounded-2xl p-6 flex items-center justify-between gap-6 group hover:border-accent/30 transition-all shadow-card hover:shadow-elevated">
+                <div key={r.id} className="bg-card-gradient border border-border rounded-2xl p-4 shadow-card flex items-center justify-between gap-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={`size-1 rounded-full ${r.enabled ? "bg-accent" : "bg-muted-foreground/30"}`} />
-                      <span className="text-[9px] font-mono tracking-[0.2em] text-muted-foreground/40 uppercase font-black">MANIFEST_ENTRY // {r.id.slice(0, 8).toUpperCase()}</span>
-                    </div>
-                    <div className="font-display text-3xl tracking-tight uppercase group-hover:text-accent transition-colors">
-                      {formatLeadTime(r.minutes_before)}
-                    </div>
+                    <div className="font-display text-xl tracking-wider">{formatLeadTime(r.minutes_before)}</div>
                     {r.label && r.label !== formatLeadTime(r.minutes_before) && (
-                      <p className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest mt-1 italic opacity-60">"{r.label}"</p>
+                      <div className="text-xs text-muted-foreground mt-1">{r.label}</div>
                     )}
                   </div>
-                  <div className="flex items-center gap-8">
-                    <div className="flex flex-col items-end gap-2">
-                      <span className="text-[8px] font-mono tracking-[0.3em] text-muted-foreground/30 uppercase font-black">LOGIC_FLOW</span>
-                      <Switch 
-                        checked={r.enabled} 
-                        onCheckedChange={(v) => toggle(r.id, v)} 
-                        disabled={!mainEnabled} 
-                        className="data-[state=checked]:bg-accent"
-                      />
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={r.enabled} onCheckedChange={(v) => toggle(r.id, v)} disabled={!mainEnabled} />
+                      <span className="text-xs text-muted-foreground w-12">{r.enabled ? "On" : "Off"}</span>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => remove(r.id)}
-                      className="h-12 w-12 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all p-0 border border-white/5"
-                    >
+                    <Button variant="outline" size="sm" onClick={() => remove(r.id)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </div>

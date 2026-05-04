@@ -41,7 +41,6 @@ export default function CustomerUser() {
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState({ total: 0, spent: 0, upcoming: 0 });
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,31 +53,6 @@ export default function CustomerUser() {
   useEffect(() => {
     if (user) {
       loadDashboardData();
-      
-      // Subscribe to real-time notifications
-      const channel = supabase
-        .channel('schema-db-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload) => {
-            console.log('New notification:', payload);
-            setNotifications((prev) => [payload.new, ...prev]);
-            toast.info(payload.new.title, {
-              description: payload.new.description,
-            });
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     }
   }, [user]);
 
@@ -125,16 +99,6 @@ export default function CustomerUser() {
 
       setStats({ total, spent, upcoming });
       setRecentBookings(bookings.slice(0, 5));
-
-      // 3. Fetch Notifications
-      const { data: notes } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      
-      setNotifications(notes || []);
 
     } catch (error: any) {
       console.error("Dashboard data error:", error.message);
@@ -528,33 +492,26 @@ export default function CustomerUser() {
                 <div className="size-7 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-[11px] font-black shadow-glow-sm">1</div>
               </div>
               <div className="space-y-4">
-                {notifications.length === 0 ? (
-                  <div className="p-10 rounded-2xl border border-dashed border-border text-center flex flex-col items-center justify-center opacity-60">
-                    <ZapOff className="size-8 text-muted-foreground mb-4" />
-                    <p className="text-[10px] font-black tracking-widest uppercase">No Transmissions</p>
-                  </div>
-                ) : (
-                  notifications.map((n, i) => (
-                    <div key={n.id || i} className="flex gap-5 p-5 rounded-2xl bg-card border border-border relative overflow-hidden group hover:border-accent/40 hover:bg-card/80 transition-all">
-                      <div className="absolute top-0 left-0 w-1 h-full bg-accent shadow-[0_0_15px_hsl(var(--accent))]" />
-                      <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:scale-110 transition-transform">
-                        <Bell className="size-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-black tracking-tight group-hover:text-accent transition-colors uppercase">{n.title}</div>
-                        <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed font-medium">{n.description}</div>
-                        <div className="flex items-center justify-between mt-4">
-                          <span className="text-[9px] font-black tracking-[0.2em] text-accent/80 uppercase">
-                            {format(parseISO(n.created_at), "HH:mm:ss")}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground/40 font-mono italic flex items-center gap-1">
-                            <Activity className="size-3" /> ONLINE
-                          </span>
-                        </div>
+                {[
+                  { title: "Network Established", time: "SYSTEM_CORE", desc: "Your player profile is now synchronized with the Butuan City facility network.", icon: Bell },
+                ].map((n, i) => (
+                  <div key={i} className="flex gap-5 p-5 rounded-2xl bg-card border border-border relative overflow-hidden group hover:border-accent/40 hover:bg-card/80 transition-all">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-accent shadow-[0_0_15px_hsl(var(--accent))]" />
+                    <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:scale-110 transition-transform">
+                      <n.icon className="size-5" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-black tracking-tight group-hover:text-accent transition-colors uppercase">{n.title}</div>
+                      <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed font-medium">{n.desc}</div>
+                      <div className="flex items-center justify-between mt-4">
+                        <span className="text-[9px] font-black tracking-[0.2em] text-accent/80 uppercase">{n.time}</span>
+                        <span className="text-[10px] text-muted-foreground/40 font-mono italic flex items-center gap-1">
+                          <Activity className="size-3" /> ONLINE
+                        </span>
                       </div>
                     </div>
-                  ))
-                )}
+                  </div>
+                ))}
               </div>
             </section>
           </aside>
