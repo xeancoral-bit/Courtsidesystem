@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { FacilityCard } from "@/components/FacilityCard";
@@ -14,14 +15,34 @@ interface Facility {
 }
 
 export default function Index() {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [facilities, setFacilities] = useState<Facility[]>([]);
 
   useEffect(() => {
     document.title = "Courtside · Book Local Sports Facilities";
+    
+    // Redirect if already logged in
+    if (!authLoading && user) {
+      const redirectUser = async () => {
+        const { data } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        const userRole = data?.role || "user";
+        if (userRole === "admin") navigate("/admin/users");
+        else if (userRole === "owner") navigate("/owner");
+        else navigate("/customer");
+      };
+      redirectUser();
+    }
+
     supabase.from("facilities").select("*").limit(6).then(({ data }) => {
       setFacilities((data as Facility[]) || []);
     });
-  }, []);
+  }, [user, authLoading, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col">

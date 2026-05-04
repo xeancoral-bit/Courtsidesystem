@@ -12,25 +12,25 @@ DECLARE
   user3_id UUID := gen_random_uuid();
 BEGIN
   -- 1. Create Admin Account
-  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, audit_log_id)
-  VALUES (admin_id, 'admin@courtside.app', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"System Administrator"}', now(), now(), 'authenticated', gen_random_uuid());
+  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role)
+  VALUES (admin_id, 'admin@courtside.app', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"System Administrator"}', now(), now(), 'authenticated');
 
   -- 2. Create Facility Owners
-  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, audit_log_id)
-  VALUES (owner1_id, 'owner.arena@courtside.app', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Marco Hoops"}', now(), now(), 'authenticated', gen_random_uuid());
+  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role)
+  VALUES (owner1_id, 'owner.arena@courtside.app', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Marco Hoops"}', now(), now(), 'authenticated');
   
-  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, audit_log_id)
-  VALUES (owner2_id, 'owner.smash@courtside.app', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Sarah Smash"}', now(), now(), 'authenticated', gen_random_uuid());
+  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role)
+  VALUES (owner2_id, 'owner.smash@courtside.app', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Sarah Smash"}', now(), now(), 'authenticated');
 
   -- 3. Create Customers (Sports Users)
-  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, audit_log_id)
-  VALUES (user1_id, 'player.mike@gmail.com', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Mike Jordan"}', now(), now(), 'authenticated', gen_random_uuid());
+  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role)
+  VALUES (user1_id, 'player.mike@gmail.com', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Mike Jordan"}', now(), now(), 'authenticated');
   
-  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, audit_log_id)
-  VALUES (user2_id, 'player.kobe@gmail.com', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Kobe Bean"}', now(), now(), 'authenticated', gen_random_uuid());
+  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role)
+  VALUES (user2_id, 'player.kobe@gmail.com', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Kobe Bean"}', now(), now(), 'authenticated');
   
-  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, audit_log_id)
-  VALUES (user3_id, 'player.lebron@gmail.com', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"King James"}', now(), now(), 'authenticated', gen_random_uuid());
+  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role)
+  VALUES (user3_id, 'player.lebron@gmail.com', crypt('Password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"King James"}', now(), now(), 'authenticated');
 
   -- Update Roles (Triggers will have auto-created them as 'user', so we update the specifics)
   UPDATE public.user_roles SET role = 'admin' WHERE user_id = admin_id;

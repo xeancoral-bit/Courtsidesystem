@@ -14,6 +14,7 @@ import ReminderSettings from "./pages/ReminderSettings.tsx";
 import AdminUsers from "./pages/AdminUsers.tsx";
 import CustomerUser from "./pages/CustomerUser.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import SqlEditor from "./pages/SqlEditor.tsx";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/reminders" element={<ReminderSettings />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/customer" element={<CustomerUser />} />
+            <Route path="/sql-editor" element={<SqlEditor />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

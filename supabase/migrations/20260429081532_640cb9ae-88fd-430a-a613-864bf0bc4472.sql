@@ -9,10 +9,13 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS series_id uuid;
 ALTER TABLE public.bookings ALTER COLUMN status DROP DEFAULT;
 ALTER TABLE public.bookings
   ALTER COLUMN status TYPE public.booking_status
-  USING (CASE
-    WHEN status IN ('pending','paid','cancelled','completed') THEN status::public.booking_status
-    WHEN status = 'confirmed' THEN 'paid'::public.booking_status
-    ELSE 'pending'::public.booking_status
+  USING (CASE status::text
+    WHEN 'pending'   THEN 'pending'::public.booking_status
+    WHEN 'paid'      THEN 'paid'::public.booking_status
+    WHEN 'cancelled' THEN 'cancelled'::public.booking_status
+    WHEN 'completed' THEN 'completed'::public.booking_status
+    WHEN 'confirmed' THEN 'paid'::public.booking_status
+    ELSE                  'pending'::public.booking_status
   END);
 ALTER TABLE public.bookings ALTER COLUMN status SET DEFAULT 'pending'::public.booking_status;
 
@@ -30,12 +33,22 @@ CREATE TABLE IF NOT EXISTS public.booking_series (
 );
 ALTER TABLE public.booking_series ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Series visible to owner" ON public.booking_series;
 CREATE POLICY "Series visible to owner" ON public.booking_series FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users create their own series" ON public.booking_series;
 CREATE POLICY "Users create their own series" ON public.booking_series FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users delete own series" ON public.booking_series;
 CREATE POLICY "Users delete own series" ON public.booking_series FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
 CREATE POLICY "Admins can view all roles" ON public.user_roles FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+
+DROP POLICY IF EXISTS "Admins can grant roles" ON public.user_roles;
 CREATE POLICY "Admins can grant roles" ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+DROP POLICY IF EXISTS "Admins can revoke roles" ON public.user_roles;
 CREATE POLICY "Admins can revoke roles" ON public.user_roles FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
 
 INSERT INTO public.facilities (name, sport_type, location, description, hourly_price, open_hour, close_hour, image_url)

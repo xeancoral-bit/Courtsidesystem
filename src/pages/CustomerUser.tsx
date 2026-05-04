@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,57 +16,75 @@ import {
   Star, 
   ArrowRight, 
   CheckCircle2, 
-  Bell,
-  Search,
-  CreditCard,
-  History,
-  Activity,
-  Clock,
-  ExternalLink,
-  ChevronRight,
-  TrendingUp,
-  Shield,
-  ArrowLeft,
-  Lock,
-  ZapOff
+  Bell, 
+  Search, 
+  CreditCard, 
+  History, 
+  Activity, 
+  Clock, 
+  ExternalLink, 
+  ChevronRight, 
+  TrendingUp, 
+  Shield, 
+  Lock
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { formatPHP } from "@/lib/format";
 import courtsideLogo from "@/assets/courtside-logo.png";
 
+// Renaming to CustomerProfile to avoid any potential global naming conflicts
+interface CustomerProfile {
+  id: string;
+  display_name: string | null;
+  phone: string | null;
+  reminder_channel: string | null;
+  reminders_enabled: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+interface Booking {
+  id: string;
+  booking_date: string;
+  start_hour: number;
+  end_hour: number;
+  total_price: number;
+  status: string;
+  facilities: {
+    name: string;
+    sport_type: string;
+    location: string;
+  } | null;
+}
+
 export default function CustomerUser() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<any>(null);
+  
+  // State hooks declared FIRST to ensure availability in callbacks
+  const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [stats, setStats] = useState({ total: 0, spent: 0, upcoming: 0 });
-  const [recentBookings, setRecentBookings] = useState<any[]>([]);
+  const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    document.title = "Player Hub · Courtside";
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
-
-  useEffect(() => {
-    if (user) {
-      loadDashboardData();
-    }
-  }, [user]);
-
-  const loadDashboardData = async () => {
+  // loadDashboardData defined BEFORE useEffect to satisfy block-scoping/hoisting rules
+  const loadDashboardData = useCallback(async () => {
     if (!user) return;
+    
     setLoading(true);
     try {
       // 1. Fetch Profile
-      const { data: prof } = await supabase
+      const { data: prof, error: profErr } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
-      setProfile(prof);
+      
+      if (profErr) throw profErr;
+      
+      // Explicitly cast to our local interface
+      setProfile(prof as CustomerProfile);
 
       // 2. Fetch Bookings for Stats & Recent Activity
       const { data: bks, error: bksErr } = await supabase
@@ -84,17 +102,17 @@ export default function CustomerUser() {
 
       if (bksErr) throw bksErr;
 
-      const bookings = bks || [];
-      const now = new Date();
-      
+      const bookings = (bks || []) as any[];
       const total = bookings.length;
       const spent = bookings
         .filter(b => b.status === "paid" || b.status === "completed")
         .reduce((sum, b) => sum + Number(b.total_price), 0);
-      
+
       const upcoming = bookings.filter(b => {
         const d = parseISO(b.booking_date);
-        return d >= new Date(now.setHours(0,0,0,0)) && b.status !== "cancelled";
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return d >= today && b.status !== "cancelled";
       }).length;
 
       setStats({ total, spent, upcoming });
@@ -106,7 +124,20 @@ export default function CustomerUser() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    document.title = "Player Hub · Courtside";
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user, loadDashboardData]);
 
   const handleQuickAction = (action: string) => {
     switch (action) {
@@ -131,50 +162,34 @@ export default function CustomerUser() {
     }
   };
 
-  if (authLoading || loading) {
+  if (loading || authLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <Navbar />
-        <main className="flex-1 container py-24 flex flex-col items-center justify-center">
-          <div className="relative mb-8">
-            <div className="size-20 rounded-2xl bg-card border border-border flex items-center justify-center animate-pulse shadow-glow">
-              <img src={courtsideLogo} alt="Logo" className="size-12 object-contain grayscale opacity-50" />
-            </div>
-            <div className="absolute inset-0 size-20 border-2 border-accent/20 rounded-2xl animate-ping" />
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-hero opacity-20" />
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="size-20 rounded-2xl bg-card border border-border flex items-center justify-center animate-pulse shadow-glow mb-6">
+            <img src={courtsideLogo} alt="Logo" className="size-12 object-contain" />
           </div>
-          <p className="font-display text-3xl tracking-[0.3em] text-foreground animate-pulse">SYNCHRONIZING HUB</p>
-          <p className="mt-4 text-muted-foreground font-mono text-sm tracking-widest opacity-60">RETRIEVING PLAYER ARCHIVES...</p>
-        </main>
-        <Footer />
+          <div className="flex items-center gap-2">
+            <div className="size-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: "0ms" }} />
+            <div className="size-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: "150ms" }} />
+            <div className="size-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+          <p className="text-[10px] uppercase tracking-[0.5em] font-black text-muted-foreground mt-4">Initializing_Vault</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background selection:bg-accent/30">
+    <div className="min-h-screen bg-background text-foreground selection:bg-accent/30 flex flex-col">
       <Navbar />
       
-      <main className="flex-1 container py-8 max-w-7xl">
-        {/* BACK BUTTON */}
-        <div className="mb-8 animate-fade-up">
-          <Button
-            asChild
-            variant="ghost"
-            className="text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all group px-0 font-mono text-[10px] tracking-[0.3em] uppercase"
-          >
-            <Link to="/">
-              <ArrowLeft className="size-3 mr-2 group-hover:-translate-x-1 transition-transform" />
-              BACK TO CENTRAL HUB
-            </Link>
-          </Button>
-        </div>
-
-
-        {/* WELCOME HERO SECTION */}
-        <section className="mb-20 animate-fade-up">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 pb-10 border-b border-border/50 relative">
-            <div className="absolute -bottom-px left-0 w-32 h-px bg-gradient-to-r from-accent to-transparent" />
-            <div className="flex items-center gap-8">
+      <main className="flex-1 container max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
+        {/* HERO SECTION / PLAYER IDENTITY */}
+        <section className="mb-20 animate-fade-in">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-10 border-b border-border/50 pb-12">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-10">
               <div className="relative group">
                 <div className="absolute -inset-2 bg-gradient-to-r from-primary to-accent rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
                 <div className="relative size-24 md:size-28 rounded-[1.5rem] bg-card/40 backdrop-blur-md border border-white/10 flex flex-col items-center justify-center shadow-glow overflow-hidden">
@@ -202,7 +217,7 @@ export default function CustomerUser() {
                 </h1>
                 <div className="flex items-center gap-6">
                   <p className="text-muted-foreground font-medium flex items-center gap-2.5 bg-white/5 px-4 py-2 rounded-full border border-white/5 backdrop-blur-md">
-                    <Activity className="size-4 text-accent animate-pulse" /> 
+                    <Activity className="size-4 text-accent animate-pulse" />
                     <span className="text-sm">{stats.upcoming > 0 ? `Active Sessions: ${stats.upcoming}` : "Waiting for next session"}</span>
                   </p>
                   <div className="hidden md:flex items-center gap-2 text-[10px] font-black tracking-widest text-white/30 uppercase">
@@ -211,7 +226,7 @@ export default function CustomerUser() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
               <Button asChild variant="outline" className="h-12 px-6 rounded-xl border-border bg-card/50 backdrop-blur-sm hover:bg-card hover:border-accent/50 transition-all group">
                 <Link to="/reminders">
@@ -226,8 +241,8 @@ export default function CustomerUser() {
               </Button>
             </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
             <div className="md:col-span-1 space-y-6">
               <Card className="bg-card-gradient border-border shadow-card hover:shadow-elevated transition-all group overflow-hidden relative border-l-4 border-l-accent h-full group/card">
                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-all translate-x-4 -translate-y-4 group-hover:scale-110">
@@ -299,19 +314,16 @@ export default function CustomerUser() {
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          {/* MAIN CONTENT AREA (Left 8 cols) */}
           <div className="lg:col-span-8 space-y-12 animate-fade-up" style={{ animationDelay: "100ms" }}>
-            
-            {/* QUICK ACTIONS GRID */}
             <section>
-               <div className="flex items-center gap-4 mb-10">
+              <div className="flex items-center gap-4 mb-10">
                 <div className="size-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shadow-glow-sm">
                   <Zap className="size-5" />
                 </div>
                 <h2 className="font-display text-5xl tracking-tighter">QUICK ACTIONS</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <button 
+                <button
                   onClick={() => handleQuickAction("nearby")}
                   className="flex items-center gap-5 p-6 rounded-2xl bg-card border border-border hover:border-accent/40 hover:bg-accent/5 hover:shadow-glow-sm transition-all text-left group relative overflow-hidden"
                 >
@@ -324,8 +336,8 @@ export default function CustomerUser() {
                     <div className="text-sm text-muted-foreground mt-0.5">Find courts within your radius</div>
                   </div>
                 </button>
-                
-                <button 
+
+                <button
                   onClick={() => handleQuickAction("instant")}
                   className="flex items-center gap-5 p-6 rounded-2xl bg-card border border-border hover:border-primary/40 hover:bg-primary/5 hover:shadow-glow-sm transition-all text-left group relative overflow-hidden"
                 >
@@ -339,7 +351,7 @@ export default function CustomerUser() {
                   </div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => handleQuickAction("favorites")}
                   className="flex items-center gap-5 p-6 rounded-2xl bg-card border border-border hover:border-accent/40 hover:bg-accent/5 hover:shadow-glow-sm transition-all text-left group relative overflow-hidden"
                 >
@@ -352,7 +364,7 @@ export default function CustomerUser() {
                   </div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => handleQuickAction("payments")}
                   className="flex items-center gap-5 p-6 rounded-2xl bg-card border border-border hover:border-primary/40 hover:bg-primary/5 hover:shadow-glow-sm transition-all text-left group relative overflow-hidden"
                 >
@@ -367,8 +379,8 @@ export default function CustomerUser() {
               </div>
             </section>
 
-            {/* RECENT ACTIVITY SECTION */}
-            <section>               <div className="flex items-center justify-between mb-10">
+            <section>
+              <div className="flex items-center justify-between mb-10">
                 <div className="flex items-center gap-4">
                   <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-glow-sm">
                     <History className="size-5" />
@@ -384,7 +396,6 @@ export default function CustomerUser() {
                 )}
               </div>
 
-              
               {recentBookings.length === 0 ? (
                 <div className="bg-card-gradient border border-border border-dashed rounded-3xl p-16 text-center flex flex-col items-center justify-center min-h-[300px] empty-court">
                   <div className="size-24 rounded-full bg-muted/10 border border-border/50 flex items-center justify-center mb-6 shadow-inner">
@@ -418,11 +429,10 @@ export default function CustomerUser() {
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <div className="font-mono text-lg text-accent font-bold">{formatPHP(b.total_price)}</div>
-                        <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
-                          b.status === 'paid' ? 'bg-accent/10 text-accent border-accent/30' : 
-                          b.status === 'cancelled' ? 'bg-destructive/10 text-destructive border-destructive/30' : 
-                          'bg-muted/10 text-muted-foreground border-border'
-                        }`}>
+                        <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${b.status === 'paid' ? 'bg-accent/10 text-accent border-accent/30' :
+                            b.status === 'cancelled' ? 'bg-destructive/10 text-destructive border-destructive/30' :
+                              'bg-muted/10 text-muted-foreground border-border'
+                          }`}>
                           {b.status}
                         </Badge>
                       </div>
@@ -433,10 +443,7 @@ export default function CustomerUser() {
             </section>
           </div>
 
-          {/* SIDEBAR AREA (Right 4 cols) */}
           <aside className="lg:col-span-4 space-y-10 animate-fade-up" style={{ animationDelay: "200ms" }}>
-            
-            {/* PLAYER CARD */}
             <section>
               <h2 className="font-display text-3xl tracking-tight mb-8">IDENTIFICATION</h2>
               <Card className="bg-card-gradient border-border shadow-card overflow-hidden rounded-3xl relative group">
@@ -449,12 +456,12 @@ export default function CustomerUser() {
                 <CardContent className="pt-0 -mt-14 relative z-10 px-8 pb-8">
                   <div className="flex flex-col items-center text-center">
                     <div className="size-28 rounded-3xl border-4 border-background bg-card flex items-center justify-center shadow-2xl mb-5 ring-2 ring-accent/20 group-hover:scale-105 transition-transform duration-500 overflow-hidden relative">
-                       <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-50" />
-                       <User className="size-14 text-accent relative z-10" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-50" />
+                      <User className="size-14 text-accent relative z-10" />
                     </div>
                     <h3 className="font-display text-3xl tracking-widest mb-1">{profile?.display_name || "RECRUIT"}</h3>
                     <p className="text-xs text-muted-foreground mb-8 font-mono tracking-tighter opacity-70">{user?.email}</p>
-                    
+
                     <div className="grid grid-cols-2 w-full gap-4 mb-10">
                       <div className="p-4 rounded-2xl bg-background/50 border border-border/50 group/stat">
                         <div className="text-3xl font-display text-primary group-hover/stat:scale-110 transition-transform">{stats.upcoming}</div>
@@ -465,7 +472,7 @@ export default function CustomerUser() {
                         <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-black mt-1">LIFETIME</div>
                       </div>
                     </div>
-                    
+
                     <div className="w-full space-y-1 px-1">
                       <div className="flex justify-between items-center py-4 border-b border-border/30">
                         <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Clock className="size-3 text-accent" /> MEMBER_SINCE</span>
@@ -485,7 +492,6 @@ export default function CustomerUser() {
               </Card>
             </section>
 
-            {/* NOTIFICATIONS / UPDATES */}
             <section>
               <div className="flex items-center justify-between mb-8">
                 <h2 className="font-display text-3xl tracking-tight">TRANSMISSIONS</h2>
@@ -522,3 +528,4 @@ export default function CustomerUser() {
     </div>
   );
 }
+
