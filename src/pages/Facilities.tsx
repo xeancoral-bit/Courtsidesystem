@@ -58,7 +58,7 @@ export default function Facilities() {
   useEffect(() => {
     document.title = "Facilities · Courtside";
     
-    let query = supabase.from("facilities" as any).select("*").eq("is_archived", false);
+    let query = supabase.from("facilities").select("*").eq("is_archived", false);
     
     // If owner is logged in, show only their facilities
     if (isOwner && user) {
@@ -66,7 +66,7 @@ export default function Facilities() {
     }
     
     query.order("name").then(({ data }) => {
-      setFacilities((data as Facility[]) || []);
+      setFacilities((data as unknown as Facility[]) || []);
       setLoading(false);
     });
   }, [isOwner, user]);
