@@ -7,11 +7,14 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
 
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "App settings readable by all authenticated" ON public.app_settings;
 CREATE POLICY "App settings readable by all authenticated"
   ON public.app_settings FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Only admins can insert settings" ON public.app_settings;
 CREATE POLICY "Only admins can insert settings"
   ON public.app_settings FOR INSERT TO authenticated
   WITH CHECK (public.has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Only admins can update settings" ON public.app_settings;
 CREATE POLICY "Only admins can update settings"
   ON public.app_settings FOR UPDATE TO authenticated
   USING (public.has_role(auth.uid(), 'admin'));

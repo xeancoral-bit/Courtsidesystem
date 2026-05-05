@@ -5,6 +5,7 @@ ALTER TABLE public.profiles
 ALTER TABLE public.bookings
   ADD COLUMN IF NOT EXISTS owner_notes TEXT;
 
+DROP POLICY IF EXISTS "Owners can update notes on their facility bookings" ON public.bookings;
 CREATE POLICY "Owners can update notes on their facility bookings"
 ON public.bookings
 FOR UPDATE

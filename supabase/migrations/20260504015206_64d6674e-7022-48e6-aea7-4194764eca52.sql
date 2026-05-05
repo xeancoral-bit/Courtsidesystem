@@ -1,8 +1,10 @@
 
 -- Partner application table
-CREATE TYPE public.partner_app_status AS ENUM ('pending','approved','rejected');
+DO $$ BEGIN
+  CREATE TYPE public.partner_app_status AS ENUM ('pending','approved','rejected');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TABLE public.partner_applications (
+CREATE TABLE IF NOT EXISTS public.partner_applications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL UNIQUE,
   business_name text NOT NULL,
@@ -23,17 +25,27 @@ CREATE TABLE public.partner_applications (
 
 ALTER TABLE public.partner_applications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Owners view own application" ON public.partner_applications;
 CREATE POLICY "Owners view own application" ON public.partner_applications
   FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins view all applications" ON public.partner_applications;
 CREATE POLICY "Admins view all applications" ON public.partner_applications
   FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+
+DROP POLICY IF EXISTS "Users create own application" ON public.partner_applications;
 CREATE POLICY "Users create own application" ON public.partner_applications
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users update own application checklist" ON public.partner_applications;
 CREATE POLICY "Users update own application checklist" ON public.partner_applications
   FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins update applications" ON public.partner_applications;
 CREATE POLICY "Admins update applications" ON public.partner_applications
   FOR UPDATE TO authenticated USING (public.has_role(auth.uid(),'admin'));
 
+DROP TRIGGER IF EXISTS update_partner_applications_updated_at ON public.partner_applications;
 CREATE TRIGGER update_partner_applications_updated_at
   BEFORE UPDATE ON public.partner_applications
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();

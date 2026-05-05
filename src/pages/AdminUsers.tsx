@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, Link, Navigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin } from "@/integrations/supabase/admin-client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoles } from "@/hooks/useRole";
-import { CourtsideLogo } from "@/components/CourtsideLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -28,14 +27,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { downloadCSV, toCSV } from "@/lib/csv";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   ShieldCheck,
   ShieldAlert,
@@ -50,14 +41,16 @@ import {
   ArrowUpDown,
   KeyRound,
   History,
-  Download,
-  LogOut,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
+import { AdminLayout } from "@/layouts/AdminLayout";
+import { cn } from "@/lib/utils";
 
 type Role = "admin" | "owner" | "user";
 type SortKey = "name" | "joined" | "role";
 type SortDir = "asc" | "desc";
-type RoleFilter = "all" | Role | "no-role";
+type RoleFilter = "all" | Role;
 
 interface ProfileRow {
   id: string;
@@ -66,18 +59,16 @@ interface ProfileRow {
   created_at: string;
 }
 
+interface AuthUserRow {
+  id: string;
+  email?: string;
+  last_sign_in_at?: string;
+  confirmed_at?: string;
+}
+
 interface RoleRow {
   user_id: string;
   role: Role;
-}
-
-interface AuditRow {
-  id: string;
-  admin_user_id: string;
-  target_user_id: string;
-  action: "grant" | "revoke" | "password_reset";
-  role: Role | null;
-  created_at: string;
 }
 
 const ROLE_BADGE: Record<Role, string> = {
@@ -89,33 +80,29 @@ const ROLE_BADGE: Record<Role, string> = {
 const ROLE_RANK: Record<Role | "none", number> = { admin: 3, owner: 2, user: 1, none: 0 };
 
 export default function AdminUsers() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { isAdmin, isOwner, loading: rolesLoading } = useRoles();
   const navigate = useNavigate();
 
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+  const [authUsers, setAuthUsers] = useState<AuthUserRow[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
-  const [audit, setAudit] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("joined");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [showAudit, setShowAudit] = useState(false);
-  const [auditSearch, setAuditSearch] = useState("");
-  const [auditAction, setAuditAction] = useState<"all" | "grant" | "revoke" | "password_reset">("all");
-  const [auditFrom, setAuditFrom] = useState("");
-  const [auditTo, setAuditTo] = useState("");
-  const [auditSortDir, setAuditSortDir] = useState<SortDir>("desc");
   const [confirm, setConfirm] = useState<
     | { kind: "grant"; userId: string; role: Role; name: string }
     | { kind: "revoke"; userId: string; role: Role; name: string }
     | { kind: "reset"; userId: string; name: string }
+    | { kind: "purge" }
     | null
   >(null);
 
   useEffect(() => {
-    document.title = "Admin · Users · Courtside";
+    document.title = "User Management · Command Center";
   }, []);
 
   useEffect(() => {
@@ -129,61 +116,47 @@ export default function AdminUsers() {
       return;
     }
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, rolesLoading, isAdmin]);
 
-  // Realtime notification feed: toast when audit log gets new entries.
-  useEffect(() => {
-    if (!isAdmin) return;
-    const channel = supabase
-      .channel("admin-audit-feed")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "admin_audit_log" },
-        (payload) => {
-          const row = payload.new as AuditRow;
-          // Skip self-initiated actions to avoid double-toasting.
-          if (row.admin_user_id === user?.id) return;
-          const label =
-            row.action === "password_reset"
-              ? "Password reset triggered"
-              : `Role ${row.action}: ${row.role ?? ""}`;
-          toast(label, { description: "New admin action recorded" });
-          setAudit((prev) => [row, ...prev].slice(0, 200));
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isAdmin, user?.id]);
-
   const refresh = async () => {
-    setLoading(true);
-    const [{ data: profs, error: pErr }, { data: rs, error: rErr }, { data: au, error: aErr }] =
-      await Promise.all([
+    if (refreshing) return;
+    setRefreshing(true);
+    if (!profiles.length) setLoading(true);
+
+    try {
+      const [
+        { data: profs, error: pErr }, 
+        { data: rs, error: rErr }, 
+        { data: { users: ausers }, error: uErr }
+      ] = await Promise.all([
         supabaseAdmin
           .from("profiles")
           .select("id,display_name,phone,created_at")
           .order("created_at", { ascending: false }),
         supabaseAdmin.from("user_roles").select("user_id,role"),
-        supabaseAdmin
-          .from("admin_audit_log" as any)
-          .select("id,admin_user_id,target_user_id,action,role,created_at")
-          .order("created_at", { ascending: false })
-          .limit(50),
+        supabaseAdmin.auth.admin.listUsers()
       ]);
-    if (pErr) toast.error(pErr.message);
-    if (rErr) toast.error(rErr.message);
-    if (aErr && aErr.code !== "PGRST116") {
-      // ignore "no rows" style errors silently
-      console.warn("Audit fetch:", aErr.message);
+
+      if (pErr) throw pErr;
+      if (rErr) throw rErr;
+      if (uErr) throw uErr;
+
+      setProfiles((profs as ProfileRow[]) || []);
+      setRoles((rs as RoleRow[]) || []);
+      setAuthUsers((ausers as any[]) || []);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load management data");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setProfiles((profs as ProfileRow[]) || []);
-    setRoles((rs as RoleRow[]) || []);
-    setAudit(((au as unknown) as AuditRow[]) || []);
-    setLoading(false);
   };
+
+  const authById = useMemo(() => {
+    const m = new Map<string, AuthUserRow>();
+    authUsers.forEach((u) => m.set(u.id, u));
+    return m;
+  }, [authUsers]);
 
   const rolesByUser = useMemo(() => {
     const m = new Map<string, Set<Role>>();
@@ -195,12 +168,6 @@ export default function AdminUsers() {
     return m;
   }, [roles]);
 
-  const profileById = useMemo(() => {
-    const m = new Map<string, ProfileRow>();
-    profiles.forEach((p) => m.set(p.id, p));
-    return m;
-  }, [profiles]);
-
   const adminCount = useMemo(() => {
     let n = 0;
     rolesByUser.forEach((set) => {
@@ -209,34 +176,22 @@ export default function AdminUsers() {
     return n;
   }, [rolesByUser]);
 
-  const counts = useMemo(() => {
-    let admins = 0,
-      owners = 0,
-      users = 0;
-    rolesByUser.forEach((set) => {
-      if (set.has("admin")) admins++;
-      if (set.has("owner")) owners++;
-      if (set.has("user") && !set.has("admin") && !set.has("owner")) users++;
-    });
-    return { admins, owners, users, total: profiles.length };
-  }, [rolesByUser, profiles.length]);
-
-  const topRole = (id: string): Role | "none" => {
-    const set = rolesByUser.get(id);
-    if (!set) return "none";
-    if (set.has("admin")) return "admin";
-    if (set.has("owner")) return "owner";
-    if (set.has("user")) return "user";
-    return "none";
-  };
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    
+    // STRICT FILTER: Only show verified users with existing auth accounts
     let list = profiles.filter((p) => {
+      const auth = authById.get(p.id);
+      if (!auth || !auth.confirmed_at) return false;
+
       if (q) {
-        const haystack = [p.display_name, p.phone, p.id].filter(Boolean).join(" ").toLowerCase();
+        const haystack = [p.display_name, p.phone, p.id, auth.email]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
         if (!haystack.includes(q)) return false;
       }
+
       const set = rolesByUser.get(p.id);
       switch (roleFilter) {
         case "all":
@@ -247,8 +202,6 @@ export default function AdminUsers() {
           return !!set?.has("owner");
         case "user":
           return !!set?.has("user") && !set?.has("admin") && !set?.has("owner");
-        case "no-role":
-          return !set || set.size === 0;
       }
     });
 
@@ -259,14 +212,26 @@ export default function AdminUsers() {
       } else if (sortKey === "joined") {
         cmp = a.created_at.localeCompare(b.created_at);
       } else {
-        cmp = ROLE_RANK[topRole(a.id)] - ROLE_RANK[topRole(b.id)];
+        const aRoleRank = Array.from(rolesByUser.get(a.id) || []).reduce((max, r) => Math.max(max, ROLE_RANK[r]), 0);
+        const bRoleRank = Array.from(rolesByUser.get(b.id) || []).reduce((max, r) => Math.max(max, ROLE_RANK[r]), 0);
+        cmp = aRoleRank - bRoleRank;
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
 
     return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profiles, search, roleFilter, sortKey, sortDir, rolesByUser]);
+  }, [profiles, search, roleFilter, sortKey, sortDir, rolesByUser, authById]);
+
+  const stats = useMemo(() => {
+    let admins = 0, owners = 0, users = 0;
+    filtered.forEach(p => {
+      const set = rolesByUser.get(p.id);
+      if (set?.has("admin")) admins++;
+      else if (set?.has("owner")) owners++;
+      else users++;
+    });
+    return { admins, owners, users, total: filtered.length };
+  }, [filtered, rolesByUser]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -291,12 +256,11 @@ export default function AdminUsers() {
       toast.error(error.message);
       return;
     }
-    toast.success(`Granted ${role}`);
+    toast.success(`Granted ${role} role`);
     refresh();
   };
 
   const revokeRole = async (userId: string, role: Role) => {
-    // Client-side guardrail that mirrors the DB safeguard so UX is clearer
     if (role === "admin" && adminCount <= 1) {
       toast.error("Cannot revoke the last remaining admin");
       return;
@@ -309,7 +273,7 @@ export default function AdminUsers() {
       toast.error(error.message);
       return;
     }
-    toast.success(`Revoked ${role}`);
+    toast.success(`Revoked ${role} role`);
     refresh();
   };
 
@@ -326,21 +290,47 @@ export default function AdminUsers() {
       return;
     }
     toast.success("Password reset email sent");
-    refresh();
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
+  const purgeAnomalies = async () => {
+    toast.promise(
+      (async () => {
+        const authIds = new Set(authUsers.map(u => u.id));
+        const unconfirmedIds = authUsers.filter(u => !u.confirmed_at).map(u => u.id);
+        const orphanedProfiles = profiles.filter(p => !authIds.has(p.id));
+
+        let deletedCount = 0;
+
+        for (const p of orphanedProfiles) {
+          await supabaseAdmin.from("profiles").delete().eq("id", p.id);
+          await supabaseAdmin.from("user_roles").delete().eq("user_id", p.id);
+          deletedCount++;
+        }
+
+        for (const id of unconfirmedIds) {
+          await supabaseAdmin.auth.admin.deleteUser(id);
+          deletedCount++;
+        }
+
+        await refresh();
+        return deletedCount;
+      })(),
+      {
+        loading: "Purging data anomalies...",
+        success: (count) => `Successfully purged ${count} invalid records`,
+        error: "Failed to purge some records"
+      }
+    );
   };
 
   if (authLoading || rolesLoading || loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#0a0a0c]">
-        <main className="flex-1 container py-20 text-center text-muted-foreground flex items-center justify-center">
-          Loading admin…
-        </main>
-      </div>
+      <AdminLayout>
+        <div className="flex flex-col items-center justify-center py-40 gap-4">
+          <div className="size-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+          <p className="text-muted-foreground font-display font-bold tracking-widest uppercase text-xs">Synchronizing Identity Vault…</p>
+        </div>
+      </AdminLayout>
     );
   }
 
@@ -349,555 +339,295 @@ export default function AdminUsers() {
     return <Navigate to="/" replace />;
   }
 
-  const lastAdminGuard = (targetId: string) =>
-    adminCount <= 1 && rolesByUser.get(targetId)?.has("admin");
-
   return (
-    <div className="min-h-screen flex flex-col relative bg-[#0a0a0c]">
-      {/* Admin specific background effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/20 via-background to-transparent opacity-60" />
-        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full" />
-      </div>
-
-      {/* Distinct Admin Header, completely disconnected from user Navbar */}
-      <header className="sticky top-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-xl border-b border-primary/20 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link to="/admin/users" className="flex items-center gap-3">
-            <CourtsideLogo size="sm" className="text-foreground" />
-            <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 border border-primary/30 px-2 py-0.5 rounded">Admin</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-6">
-            <Link to="/admin/users" className="text-sm font-bold uppercase tracking-wider text-primary border-b-2 border-primary pb-1">Users</Link>
-            <Link to="/admin/partners" className="text-sm font-bold uppercase tracking-wider text-muted-foreground hover:text-white transition-colors">Partners</Link>
-          </nav>
+    <AdminLayout>
+      <header className="mb-12">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 flex items-center gap-2">
+            <ShieldCheck className="size-3.5 text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">System Integrity</span>
+          </div>
+          <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-widest bg-emerald-500/5 text-emerald-500 border-emerald-500/20">
+            Real-time Monitoring Active
+          </Badge>
         </div>
-        <Button variant="outline" size="sm" onClick={handleSignOut} className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary">
-          <LogOut className="size-4 mr-2" /> Sign Out
-        </Button>
-      </header>
-
-      <main className="flex-1 container py-12 relative z-10">
-        <div className="flex items-end justify-between flex-wrap gap-4 mb-10 pb-6 border-b border-primary/20">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/30 mb-4 shadow-[0_0_15px_rgba(var(--primary),0.2)]">
-              <ShieldCheck className="size-4 text-primary" />
-              <span className="text-xs uppercase tracking-widest text-primary font-bold">
-                System Control
-              </span>
-            </div>
-            <h1 className="font-display text-5xl md:text-6xl tracking-wider text-white shadow-black drop-shadow-md">
-              ADMIN <span className="text-primary/80">CENTER</span>
+            <h1 className="text-4xl md:text-5xl font-display font-black tracking-tighter text-white mb-2">
+              USER <span className="text-primary">STEWARDSHIP</span>
             </h1>
-            <p className="text-muted-foreground mt-3 max-w-2xl text-lg">
-              Manage who can sign in, run facilities, or administer the platform. All role changes
-              are server-validated and recorded in the audit log.
+            <p className="text-muted-foreground max-w-xl text-lg font-medium leading-relaxed">
+              Maintain a high-fidelity database by overseeing verified account holders and enforcing role-based system access.
             </p>
           </div>
-          <Button variant="outline" size="lg" className="border-primary/40 hover:bg-primary/10 hover:text-primary transition-all shadow-[0_0_10px_rgba(var(--primary),0.1)]" onClick={() => setShowAudit((v) => !v)}>
-            <History className="size-5 mr-2" />
-            {showAudit ? "Hide audit log" : "View audit log"}
-          </Button>
-        </div>
-
-        {/* Stat cards / Quick filters */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <FilterCard
-            icon={Users}
-            label="Total accounts"
-            value={counts.total.toString()}
-            active={roleFilter === "all"}
-            onClick={() => setRoleFilter("all")}
-          />
-          <FilterCard
-            icon={ShieldCheck}
-            label="Admins"
-            value={counts.admins.toString()}
-            tone="destructive"
-            active={roleFilter === "admin"}
-            onClick={() => setRoleFilter("admin")}
-          />
-          <FilterCard
-            icon={UserCog}
-            label="Owners"
-            value={counts.owners.toString()}
-            tone="accent"
-            active={roleFilter === "owner"}
-            onClick={() => setRoleFilter("owner")}
-          />
-          <FilterCard
-            icon={UserPlus}
-            label="Users only"
-            value={counts.users.toString()}
-            active={roleFilter === "user"}
-            onClick={() => setRoleFilter("user")}
-          />
-        </div>
-
-        {/* Search + active filter chip */}
-        <div className="flex flex-wrap items-center gap-3 mb-8 bg-black/40 p-4 rounded-xl border border-white/5 backdrop-blur-md">
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, phone, or user ID…"
-              className="pl-12 pr-10 h-12 bg-white/5 border-white/10 text-lg focus-visible:ring-primary/50"
-              aria-label="Search users"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
-                aria-label="Clear search"
-              >
-                <XCircle className="size-5" />
-              </button>
-            )}
-          </div>
-          {roleFilter !== "all" && (
-            <Badge
-              variant="outline"
-              className="h-12 px-4 gap-2 cursor-pointer border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm"
-              onClick={() => setRoleFilter("all")}
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setConfirm({ kind: "purge" })}
+              className="border-destructive/20 text-destructive hover:bg-destructive/10 h-12 px-6 rounded-xl font-display font-bold tracking-wide"
             >
-              Filter: <span className="uppercase tracking-widest">{roleFilter}</span>
-              <XCircle className="size-4 ml-1 opacity-70" />
-            </Badge>
-          )}
-        </div>
-
-        {/* Audit log panel */}
-        {showAudit && (() => {
-          const filteredAudit = audit.filter((a) => {
-            if (auditAction !== "all" && a.action !== auditAction) return false;
-            if (auditFrom && a.created_at < auditFrom) return false;
-            if (auditTo && a.created_at > `${auditTo}T23:59:59`) return false;
-            const q = auditSearch.trim().toLowerCase();
-            if (q) {
-              const adminName = profileById.get(a.admin_user_id)?.display_name || "";
-              const targetName = profileById.get(a.target_user_id)?.display_name || "";
-              const hay = [
-                adminName,
-                targetName,
-                a.admin_user_id,
-                a.target_user_id,
-                a.role ?? "",
-                a.action,
-              ]
-                .join(" ")
-                .toLowerCase();
-              if (!hay.includes(q)) return false;
-            }
-            return true;
-          });
-          const sortedAudit = [...filteredAudit].sort((a, b) => {
-            const cmp = a.created_at.localeCompare(b.created_at);
-            return auditSortDir === "asc" ? cmp : -cmp;
-          });
-          const exportAudit = () => {
-            const rows = sortedAudit.map((a) => ({
-              timestamp: a.created_at,
-              action: a.action,
-              role: a.role ?? "",
-              admin_id: a.admin_user_id,
-              admin_name: profileById.get(a.admin_user_id)?.display_name ?? "",
-              target_id: a.target_user_id,
-              target_name: profileById.get(a.target_user_id)?.display_name ?? "",
-            }));
-            downloadCSV(
-              `admin-audit-${new Date().toISOString().slice(0, 10)}.csv`,
-              toCSV(rows, [
-                "timestamp",
-                "action",
-                "role",
-                "admin_id",
-                "admin_name",
-                "target_id",
-                "target_name",
-              ]),
-            );
-            toast.success(`Exported ${rows.length} audit ${rows.length === 1 ? "entry" : "entries"}`);
-          };
-          return (
-          <section className="bg-card-gradient border border-border rounded-2xl p-5 shadow-card mb-8">
-            <div className="flex items-center gap-2 mb-4 flex-wrap">
-              <History className="size-4 text-primary" />
-              <h2 className="font-display text-2xl tracking-wider">Recent admin actions</h2>
-              <span className="text-xs text-muted-foreground">
-                Showing {sortedAudit.length} of last {audit.length}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportAudit}
-                disabled={sortedAudit.length === 0}
-                className="ml-auto"
-              >
-                <Download className="size-4" /> Export CSV
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-              <div className="relative md:col-span-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  value={auditSearch}
-                  onChange={(e) => setAuditSearch(e.target.value)}
-                  placeholder="Search admin or target name / ID…"
-                  className="pl-9"
-                  aria-label="Search audit entries"
-                />
-              </div>
-              <Select value={auditAction} onValueChange={(v) => setAuditAction(v as typeof auditAction)}>
-                <SelectTrigger aria-label="Filter by action">
-                  <SelectValue placeholder="Action" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All actions</SelectItem>
-                  <SelectItem value="grant">Grant</SelectItem>
-                  <SelectItem value="revoke">Revoke</SelectItem>
-                  <SelectItem value="password_reset">Password reset</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={auditFrom}
-                  onChange={(e) => setAuditFrom(e.target.value)}
-                  aria-label="From date"
-                />
-                <Input
-                  type="date"
-                  value={auditTo}
-                  onChange={(e) => setAuditTo(e.target.value)}
-                  aria-label="To date"
-                />
-              </div>
-            </div>
-
-            {sortedAudit.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No audit entries match your filters.
-              </p>
-            ) : (
-              <div className="overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <button
-                          onClick={() => setAuditSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-                          className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold hover:text-foreground transition-colors"
-                        >
-                          When {auditSortDir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />}
-                        </button>
-                      </TableHead>
-                      <TableHead>Admin</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Target</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedAudit.map((a) => {
-                      const adminName =
-                        profileById.get(a.admin_user_id)?.display_name ||
-                        a.admin_user_id.slice(0, 8).toUpperCase();
-                      const targetName =
-                        profileById.get(a.target_user_id)?.display_name ||
-                        a.target_user_id.slice(0, 8).toUpperCase();
-                      return (
-                        <TableRow key={a.id}>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {formatDistanceToNow(parseISO(a.created_at), { addSuffix: true })}
-                          </TableCell>
-                          <TableCell className="text-sm">{adminName}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded border ${
-                                a.action === "grant"
-                                  ? "bg-primary/15 text-primary border-primary/30"
-                                  : a.action === "revoke"
-                                  ? "bg-destructive/15 text-destructive border-destructive/30"
-                                  : "bg-accent/15 text-accent border-accent/30"
-                              }`}
-                            >
-                              {a.action === "password_reset"
-                                ? "reset password"
-                                : `${a.action} ${a.role ?? ""}`}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm">{targetName}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </section>
-          );
-        })()}
-
-        {/* User table */}
-        {filtered.length === 0 ? (
-          <div className="empty-court bg-card-gradient border border-border rounded-2xl p-12 text-center">
-            <Users className="size-10 text-primary/60 mx-auto mb-3" />
-            <p className="text-muted-foreground">No users match your filters.</p>
+              <Trash2 className="size-5 mr-2" />
+              Purge Incomplete Data
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={refresh}
+              className="border-white/10 hover:bg-white/5 h-12 px-6 rounded-xl font-display font-bold tracking-wide"
+            >
+              <History className="size-5 mr-2" />
+              Refresh
+            </Button>
           </div>
-        ) : (
-          <div className="bg-card-gradient border border-border rounded-2xl shadow-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <button
-                      onClick={() => toggleSort("name")}
-                      className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold hover:text-foreground transition-colors"
-                    >
-                      Name <SortIcon k="name" />
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      onClick={() => toggleSort("joined")}
-                      className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold hover:text-foreground transition-colors"
-                    >
-                      Joined <SortIcon k="joined" />
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      onClick={() => toggleSort("role")}
-                      className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold hover:text-foreground transition-colors"
-                    >
-                      Roles <SortIcon k="role" />
-                    </button>
-                  </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((p) => {
-                  const userRoles = rolesByUser.get(p.id) || new Set<Role>();
-                  const isSelf = p.id === user?.id;
-                  const isAdminUser = userRoles.has("admin");
-                  const isOwnerUser = userRoles.has("owner");
-                  const blockRevokeAdmin = isAdminUser && (isSelf || lastAdminGuard(p.id));
-                  return (
-                    <TableRow key={p.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium truncate">
-                            {p.display_name || "Unnamed user"}
-                          </span>
-                          {isSelf && (
-                            <Badge variant="outline" className="text-[10px] uppercase tracking-widest">
-                              You
-                            </Badge>
-                          )}
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <MetricCard label="Total Verified" value={stats.total} icon={Users} active={roleFilter === "all"} onClick={() => setRoleFilter("all")} />
+        <MetricCard label="System Admins" value={stats.admins} icon={ShieldCheck} active={roleFilter === "admin"} onClick={() => setRoleFilter("admin")} />
+        <MetricCard label="Facility Owners" value={stats.owners} icon={UserCog} active={roleFilter === "owner"} onClick={() => setRoleFilter("owner")} />
+        <MetricCard label="Players" value={stats.users} icon={UserPlus} active={roleFilter === "user"} onClick={() => setRoleFilter("user")} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 mb-6 bg-white/[0.02] border border-white/5 p-4 rounded-2xl backdrop-blur-sm">
+        <div className="relative flex-1 min-w-[300px]">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
+          <Input 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email, phone or UID..."
+            className="pl-12 h-12 bg-black/20 border-white/5 focus-visible:ring-primary/40 rounded-xl text-base"
+          />
+        </div>
+        {roleFilter !== "all" && (
+          <Badge variant="secondary" className="h-10 px-4 rounded-xl gap-2 bg-primary/10 text-primary border-primary/20">
+            Filtering: <span className="uppercase font-black">{roleFilter}</span>
+            <XCircle className="size-4 cursor-pointer" onClick={() => setRoleFilter("all")} />
+          </Badge>
+        )}
+      </div>
+
+      <div className="bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md">
+        <Table>
+          <TableHeader className="bg-white/[0.03]">
+            <TableRow className="hover:bg-transparent border-b border-white/5">
+              <TableHead className="h-16 px-6">
+                <button onClick={() => toggleSort("name")} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-white transition-colors">
+                  Identity <SortIcon k="name" />
+                </button>
+              </TableHead>
+              <TableHead className="h-16">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Account Status</span>
+              </TableHead>
+              <TableHead className="h-16">
+                <button onClick={() => toggleSort("role")} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-white transition-colors">
+                  Permissions <SortIcon k="role" />
+                </button>
+              </TableHead>
+              <TableHead className="h-16">
+                <button onClick={() => toggleSort("joined")} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-white transition-colors">
+                  Tenure <SortIcon k="joined" />
+                </button>
+              </TableHead>
+              <TableHead className="h-16 px-6 text-right">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">System Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-64 text-center">
+                  <div className="flex flex-col items-center gap-3 opacity-30">
+                    <Users className="size-12" />
+                    <p className="font-display font-bold tracking-widest uppercase text-xs">No matching verified accounts found</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((p) => {
+                const userRoles = rolesByUser.get(p.id) || new Set<Role>();
+                const auth = authById.get(p.id)!;
+                const isSelf = p.id === user?.id;
+                const isAdminUser = userRoles.has("admin");
+                const isOwnerUser = userRoles.has("owner");
+                
+                return (
+                  <TableRow key={p.id} className="group hover:bg-white/[0.03] transition-colors border-b border-white/5">
+                    <TableCell className="py-6 px-6">
+                      <div className="flex items-start gap-4">
+                        <div className={cn(
+                          "size-12 rounded-2xl flex items-center justify-center font-display font-black text-xl border transition-all duration-300 group-hover:scale-110 shadow-lg",
+                          isAdminUser ? "bg-primary/10 border-primary/30 text-primary shadow-primary/5" :
+                          isOwnerUser ? "bg-accent/10 border-accent/30 text-accent shadow-accent/5" :
+                          "bg-white/5 border-white/10 text-muted-foreground shadow-white/5"
+                        )}>
+                          {(p.display_name || "?").charAt(0).toUpperCase()}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-3">
-                          <span className="font-mono opacity-70">
-                            {p.id.slice(0, 8).toUpperCase()}
-                          </span>
-                          {p.phone && <span>{p.phone}</span>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {format(parseISO(p.created_at), "PP")}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(["admin", "owner", "user"] as Role[]).map((r) =>
-                            userRoles.has(r) ? (
-                              <span
-                                key={r}
-                                className={`text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded border ${ROLE_BADGE[r]}`}
-                              >
-                                {r}
-                              </span>
-                            ) : null,
-                          )}
-                          {userRoles.size === 0 && (
-                            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                              No roles
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span className="font-display font-bold text-white text-lg tracking-tight group-hover:text-primary transition-colors">
+                              {p.display_name || "Anonymous User"}
                             </span>
-                          )}
+                            {isSelf && (
+                              <Badge className="bg-primary text-primary-foreground text-[8px] font-black uppercase tracking-[0.2em] px-1.5 py-0">You</Badge>
+                            )}
+                          </div>
+                          <span className="text-sm text-muted-foreground font-medium">{auth.email}</span>
+                          <span className="text-[10px] text-muted-foreground/40 mt-1 font-mono uppercase tracking-tighter">UID: {p.id.slice(0, 18)}…</span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2 justify-end">
-                          {isOwnerUser ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setConfirm({
-                                  kind: "revoke",
-                                  userId: p.id,
-                                  role: "owner",
-                                  name: p.display_name || "this user",
-                                })
-                              }
-                            >
-                              <UserMinus className="size-4" /> Revoke owner
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setConfirm({
-                                  kind: "grant",
-                                  userId: p.id,
-                                  role: "owner",
-                                  name: p.display_name || "this user",
-                                })
-                              }
-                            >
-                              <UserPlus className="size-4" /> Make owner
-                            </Button>
-                          )}
-
-                          {isAdminUser ? (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={blockRevokeAdmin}
-                              title={
-                                isSelf
-                                  ? "You can't revoke your own admin role"
-                                  : lastAdminGuard(p.id)
-                                  ? "Cannot revoke the last remaining admin"
-                                  : undefined
-                              }
-                              onClick={() =>
-                                setConfirm({
-                                  kind: "revoke",
-                                  userId: p.id,
-                                  role: "admin",
-                                  name: p.display_name || "this user",
-                                })
-                              }
-                            >
-                              <ShieldAlert className="size-4" /> Revoke admin
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                setConfirm({
-                                  kind: "grant",
-                                  userId: p.id,
-                                  role: "admin",
-                                  name: p.display_name || "this user",
-                                })
-                              }
-                            >
-                              <ShieldCheck className="size-4" /> Make admin
-                            </Button>
-                          )}
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              setConfirm({
-                                kind: "reset",
-                                userId: p.id,
-                                name: p.display_name || "this user",
-                              })
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="size-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Identity Verified</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-tighter">
+                          Verified {format(parseISO(auth.confirmed_at!), "MMM d, h:mm a")}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from(userRoles).map((r) => (
+                          <Badge key={r} className={cn(ROLE_BADGE[r], "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border")}>
+                            {r}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                      <div>{format(parseISO(p.created_at), "MMM d, yyyy")}</div>
+                      <div className="text-[10px] opacity-50 mt-0.5 uppercase tracking-tighter">{formatDistanceToNow(parseISO(p.created_at), { addSuffix: true })}</div>
+                    </TableCell>
+                    <TableCell className="px-6 text-right">
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setConfirm({ kind: "reset", userId: p.id, name: p.display_name || p.id })}
+                          className="size-9 p-0 rounded-xl border-white/5 hover:border-primary/40 hover:bg-primary/10 transition-all"
+                          title="Reset Password"
+                        >
+                          <KeyRound className="size-4" />
+                        </Button>
+                        <div className="w-px h-9 bg-white/5 mx-1" />
+                        
+                        {!isAdminUser && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className={cn(
+                              "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest border-white/5 transition-all",
+                              isOwnerUser ? "hover:border-destructive/40 hover:bg-destructive/10 text-destructive" : "hover:border-accent/40 hover:bg-accent/10 text-accent"
+                            )}
+                            onClick={() => isOwnerUser 
+                              ? setConfirm({ kind: "revoke", userId: p.id, role: "owner", name: p.display_name || p.id })
+                              : setConfirm({ kind: "grant", userId: p.id, role: "owner", name: p.display_name || p.id })
                             }
                           >
-                            <KeyRound className="size-4" /> Reset password
+                            {isOwnerUser ? <UserMinus className="size-3.5 mr-2" /> : <UserPlus className="size-3.5 mr-2" />}
+                            {isOwnerUser ? "Revoke Owner" : "Make Owner"}
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+                        )}
 
-        <p className="text-xs text-muted-foreground mt-6">
-          Note: every account keeps the base <code>user</code> role. Granting <code>owner</code>{" "}
-          unlocks the Owner Dashboard; granting <code>admin</code> additionally unlocks this page.
-          The system always keeps at least one admin.
-        </p>
-      </main>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={isAdminUser && (isSelf || adminCount <= 1)}
+                          className={cn(
+                            "h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest border-white/5 transition-all",
+                            isAdminUser ? "hover:border-destructive/40 hover:bg-destructive/10 text-destructive" : "hover:border-primary/40 hover:bg-primary/10 text-primary shadow-[0_0_20px_rgba(var(--primary),0.1)]"
+                          )}
+                          onClick={() => isAdminUser 
+                            ? setConfirm({ kind: "revoke", userId: p.id, role: "admin", name: p.display_name || p.id })
+                            : setConfirm({ kind: "grant", userId: p.id, role: "admin", name: p.display_name || p.id })
+                          }
+                        >
+                          {isAdminUser ? <ShieldAlert className="size-3.5 mr-2" /> : <ShieldCheck className="size-3.5 mr-2" />}
+                          {isAdminUser ? "Revoke Admin" : "Make Admin"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-[#0f0f12] border border-white/10 rounded-2xl max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirm?.kind === "reset"
-                ? "Send password reset email"
-                : `${confirm?.kind === "grant" ? "Grant" : "Revoke"} ${
-                    confirm && "role" in confirm ? confirm.role : ""
-                  } role`}
+            <div className="size-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+              {confirm?.kind === "purge" ? <Trash2 className="size-6 text-destructive" /> : 
+               confirm?.kind === "reset" ? <KeyRound className="size-6 text-primary" /> : <ShieldCheck className="size-6 text-primary" />}
+            </div>
+            <AlertDialogTitle className="text-2xl font-display font-black tracking-tight text-white">
+              {confirm?.kind === "purge" ? "Critical System Purge" : 
+               confirm?.kind === "reset" ? "Reset Credentials" : "Update System Role"}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirm?.kind === "reset"
-                ? `Send a password reset email to ${confirm.name}? They will receive a secure link to choose a new password.`
-                : confirm?.kind === "grant"
-                ? `Give ${confirm.name} the ${confirm.role} role? They'll get access immediately on their next request.`
-                : confirm?.kind === "revoke"
-                ? `Remove the ${confirm.role} role from ${confirm.name}? They'll lose access immediately.`
-                : ""}
+            <AlertDialogDescription className="text-muted-foreground text-base leading-relaxed">
+              {confirm?.kind === "purge" ? "This will permanently remove all orphaned profiles and unconfirmed auth records. This action is irreversible." :
+               confirm?.kind === "reset" ? `Send a secure password reset link to ${confirm?.name}?` :
+               `Are you sure you want to ${confirm?.kind} the role for ${confirm?.name}? Change will be recorded in system audit logs.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 mt-6">
+            <AlertDialogCancel className="h-12 px-6 rounded-xl border-white/5 bg-white/5 hover:bg-white/10 text-white font-bold transition-all">Cancel</AlertDialogCancel>
             <AlertDialogAction
+              className={cn(
+                "h-12 px-6 rounded-xl font-black uppercase tracking-widest transition-all",
+                confirm?.kind === "purge" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(var(--primary),0.3)]"
+              )}
               onClick={async () => {
                 if (!confirm) return;
                 if (confirm.kind === "grant") await grantRole(confirm.userId, confirm.role);
                 else if (confirm.kind === "revoke") await revokeRole(confirm.userId, confirm.role);
                 else if (confirm.kind === "reset") await sendPasswordReset(confirm.userId);
+                else if (confirm.kind === "purge") await purgeAnomalies();
                 setConfirm(null);
               }}
             >
-              Confirm
+              Execute Action
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AdminLayout>
   );
 }
 
-function FilterCard({
-  icon: Icon,
-  label,
-  value,
-  tone,
-  active,
-  onClick,
-}: {
-  icon: any;
-  label: string;
-  value: string;
-  tone?: "accent" | "destructive";
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  const color =
-    tone === "destructive" ? "text-destructive" : tone === "accent" ? "text-accent" : "text-primary";
+function MetricCard({ label, value, icon: Icon, active, onClick }: any) {
   return (
     <button
-      type="button"
       onClick={onClick}
-      className={`text-left bg-card-gradient border rounded-2xl p-5 shadow-card transition-all hover:border-primary/50 ${
-        active ? "border-primary ring-2 ring-primary/40" : "border-border"
-      }`}
+      className={cn(
+        "flex flex-col p-6 rounded-2xl border transition-all duration-300 text-left group overflow-hidden relative",
+        active 
+          ? "bg-primary/10 border-primary/40 shadow-[0_0_30px_rgba(var(--primary),0.1)]" 
+          : "bg-white/[0.02] border-white/5 hover:border-white/20"
+      )}
     >
-      <Icon className={`size-5 ${color} mb-2`} />
-      <div className="font-display text-3xl tracking-wider">{value}</div>
-      <div className="text-xs uppercase tracking-widest text-muted-foreground mt-1">{label}</div>
+      <div className={cn(
+        "size-10 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110",
+        active ? "bg-primary text-primary-foreground" : "bg-white/5 text-muted-foreground group-hover:text-white"
+      )}>
+        <Icon className="size-5" />
+      </div>
+      <div className="font-display text-4xl font-black text-white mb-1 group-hover:text-primary transition-colors">
+        {value}
+      </div>
+      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground group-hover:text-muted transition-colors">
+        {label}
+      </div>
+      {active && (
+        <div className="absolute top-0 right-0 p-4">
+          <div className="size-1.5 rounded-full bg-primary animate-pulse" />
+        </div>
+      )}
     </button>
   );
 }

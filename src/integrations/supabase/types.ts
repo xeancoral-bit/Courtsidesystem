@@ -122,6 +122,7 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"]
           total_price: number
           user_id: string
+          reminder_text: string | null
         }
         Insert: {
           booking_date: string
@@ -140,6 +141,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"]
           total_price?: number
           user_id: string
+          reminder_text?: string | null
         }
         Update: {
           booking_date?: string
@@ -158,6 +160,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"]
           total_price?: number
           user_id?: string
+          reminder_text?: string | null
         }
         Relationships: [
           {
@@ -183,6 +186,7 @@ export type Database = {
           owner_id: string | null
           sport_type: string
           updated_at: string
+          is_archived: boolean
         }
         Insert: {
           close_hour?: number
@@ -197,6 +201,7 @@ export type Database = {
           owner_id?: string | null
           sport_type: string
           updated_at?: string
+          is_archived?: boolean
         }
         Update: {
           close_hour?: number
@@ -211,6 +216,7 @@ export type Database = {
           owner_id?: string | null
           sport_type?: string
           updated_at?: string
+          is_archived?: boolean
         }
         Relationships: []
       }
@@ -330,6 +336,127 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          facility_id: string | null
+          id: string
+          rating: number | null
+          user_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          facility_id?: string | null
+          id?: string
+          rating?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          facility_id?: string | null
+          id?: string
+          rating?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_facility_id_fkey"
+            columns: ["facility_id"]
+            isOneToOne: false
+            referencedRelation: "facilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      staff: {
+        Row: {
+          created_at: string
+          email: string | null
+          facility_id: string | null
+          id: string
+          name: string
+          phone: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          facility_id?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          facility_id?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_facility_id_fkey"
+            columns: ["facility_id"]
+            isOneToOne: false
+            referencedRelation: "facilities"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      support_tickets: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          status: string | null
+          subject: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          status?: string | null
+          subject: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          status?: string | null
+          subject?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       user_roles: {
         Row: {

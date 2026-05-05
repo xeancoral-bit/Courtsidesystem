@@ -1,4 +1,4 @@
-CREATE TABLE public.reminder_preferences (
+CREATE TABLE IF NOT EXISTS public.reminder_preferences (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL,
   minutes_before INTEGER NOT NULL CHECK (minutes_before > 0 AND minutes_before <= 10080),
@@ -11,15 +11,23 @@ CREATE TABLE public.reminder_preferences (
 
 ALTER TABLE public.reminder_preferences ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users view own reminders" ON public.reminder_preferences;
 CREATE POLICY "Users view own reminders" ON public.reminder_preferences
   FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users insert own reminders" ON public.reminder_preferences;
 CREATE POLICY "Users insert own reminders" ON public.reminder_preferences
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users update own reminders" ON public.reminder_preferences;
 CREATE POLICY "Users update own reminders" ON public.reminder_preferences
   FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users delete own reminders" ON public.reminder_preferences;
 CREATE POLICY "Users delete own reminders" ON public.reminder_preferences
   FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
+DROP TRIGGER IF EXISTS update_reminder_preferences_updated_at ON public.reminder_preferences;
 CREATE TRIGGER update_reminder_preferences_updated_at
   BEFORE UPDATE ON public.reminder_preferences
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();

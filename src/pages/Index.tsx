@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import heroImg from "@/assets/hero.jpg";
 import { Calendar, Users, Zap, Shield, ArrowRight, MapPin, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { useRoles } from "@/hooks/useRole";
+import { CourtsideLogo } from "@/components/CourtsideLogo";
 
 interface Facility {
   id: string; name: string; sport_type: string; location: string;
@@ -31,11 +32,22 @@ export default function Index() {
   }, []);
 
   // Strict Role-Based Access Control
-  if (!rolesLoading && isAdmin) {
+  if (rolesLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="size-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+          <p className="text-xs uppercase tracking-[0.2em] font-black text-muted-foreground animate-pulse">Initializing Terminal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAdmin) {
     return <Navigate to="/admin/users" replace />;
   }
   
-  if (!rolesLoading && !isAdmin && isOwner) {
+  if (isOwner) {
     return <Navigate to="/owner" replace />;
   }
 
@@ -139,6 +151,56 @@ export default function Index() {
               <p className="text-muted-foreground relative">{s.d}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ABOUT SECTION */}
+      <section id="about" className="container py-20 border-t border-border/50">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+              <ShieldCheck className="size-4 text-blue-400" />
+              <span className="text-[10px] uppercase tracking-[0.2em] font-black text-blue-400">About Courtside</span>
+            </div>
+            <h2 className="font-display text-5xl md:text-6xl tracking-tight leading-none">
+              REDEFINING THE<br />
+              <span className="text-gradient">SPORTS EXPERIENCE.</span>
+            </h2>
+            <p className="text-muted-foreground text-lg leading-relaxed">
+              Courtside was born from a simple observation: finding and booking quality sports facilities in Butuan City shouldn't be a hurdle. We've built a high-fidelity digital infrastructure that connects players with premium venues instantly.
+            </p>
+            <div className="flex items-center gap-4 pt-4">
+              <div className="size-12 rounded-xl bg-card-gradient border border-border flex items-center justify-center">
+                <Users className="size-6 text-accent" />
+              </div>
+              <div>
+                <div className="font-bold text-white tracking-tight">Community Driven</div>
+                <div className="text-sm text-muted-foreground">Built for the athletes of Butuan.</div>
+              </div>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="aspect-square rounded-3xl bg-card-gradient border border-border p-8 flex flex-col justify-center gap-6 shadow-glow overflow-hidden group">
+              <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity">
+                <CourtsideLogo className="w-64 h-64 -rotate-12" />
+              </div>
+              <h3 className="font-display text-3xl tracking-widest uppercase text-white/40">Our Mission</h3>
+              <p className="text-2xl font-medium tracking-tight text-white/90 relative z-10">
+                "To democratize access to world-class sports facilities through artisanal digital solutions and seamless local integration."
+              </p>
+              <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
+              <div className="flex gap-8">
+                <div>
+                  <div className="text-3xl font-display text-accent">100%</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">Reliability</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-display text-blue-400">24/7</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">Booking</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

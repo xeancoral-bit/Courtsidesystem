@@ -13,7 +13,12 @@ import OwnerDashboard from "./pages/OwnerDashboard.tsx";
 import ReminderSettings from "./pages/ReminderSettings.tsx";
 import AdminUsers from "./pages/AdminUsers.tsx";
 import AdminPartners from "./pages/AdminPartners.tsx";
+import AdminDashboard from "./pages/AdminDashboard.tsx";
+import AdminCalendar from "./pages/AdminCalendar.tsx";
+import AdminLogs from "./pages/AdminLogs.tsx";
+import AdminSettings from "./pages/AdminSettings.tsx";
 import PartnerOnboarding from "./pages/PartnerOnboarding.tsx";
+import Profile from "./pages/Profile.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -33,9 +38,14 @@ const App = () => (
             <Route path="/my-bookings" element={<MyBookings />} />
             <Route path="/owner" element={<OwnerDashboard />} />
             <Route path="/reminders" element={<ReminderSettings />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/partners" element={<AdminPartners />} />
+            <Route path="/admin/calendar" element={<AdminCalendar />} />
+            <Route path="/admin/logs" element={<AdminLogs />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/partner" element={<PartnerOnboarding />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

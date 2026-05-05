@@ -17,22 +17,23 @@ import {
   LayoutDashboard,
   Bell,
   Menu,
-  Home,
   Building2,
-  ShieldCheck,
   Handshake,
+  User,
+  Home,
+  Info,
 } from "lucide-react";
 import { CourtsideLogo } from "@/components/CourtsideLogo";
 
 interface NavItem {
   to: string;
   label: string;
-  icon: typeof Home;
+  icon: typeof LayoutDashboard;
   show: boolean;
 }
 
 export function Navbar() {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { isOwner, isAdmin } = useRoles();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -43,38 +44,35 @@ export function Navbar() {
     setOpen(false);
   }, [pathname]);
 
-  const isHome = pathname === "/";
-
   const navItems: NavItem[] = [
-    { to: "/", label: "Home", icon: Home, show: true },
-    { to: "/facilities", label: "Facilities", icon: Building2, show: true },
-    { to: "/my-bookings", label: "My Bookings", icon: CalendarCheck, show: !!user },
-    { to: "/reminders", label: "Reminders", icon: Bell, show: !!user },
-    { to: "/owner", label: "Dashboard", icon: LayoutDashboard, show: !!user && isOwner },
-    { to: "/partner", label: "Partner", icon: Handshake, show: !!user && !isOwner },
+    { to: "/", label: "Home", icon: Home, show: pathname === "/" },
+    { to: "/#about", label: "About", icon: Info, show: pathname === "/" },
+    { to: isOwner ? "/owner" : isAdmin ? "/admin/users" : "/", label: "Dashboard", icon: LayoutDashboard, show: !!user },
+    { to: "/reminders", label: "Reminders", icon: Bell, show: !!user && isOwner },
+    { to: "/facilities", label: "Browse Facilities", icon: Building2, show: true },
+    { to: "/my-bookings", label: "My Bookings", icon: CalendarCheck, show: !!user && !isOwner && !isAdmin },
+    { to: "/partner", label: "Partner", icon: Handshake, show: !!user && !isOwner && !isAdmin },
     { to: "/admin/partners", label: "Partners", icon: Handshake, show: !!user && isAdmin },
-    { to: "/admin/users", label: "Admin", icon: ShieldCheck, show: !!user && isAdmin },
+    { to: "/profile", label: "Account", icon: User, show: !!user },
   ];
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/70 border-b border-border supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between gap-3">
         {/* Logo — always navigates home, active state on landing */}
-        <Link
-          to="/"
-          aria-label="Courtside — go to home"
-          aria-current={isHome ? "page" : undefined}
-          className={`flex items-center group rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-            isHome ? "ring-1 ring-accent/40" : ""
-          }`}
-        >
-          <CourtsideLogo className="group-hover:scale-105 transition-transform text-foreground" />
-        </Link>
+        <div className="w-[180px] flex-shrink-0">
+          <Link
+            to="/"
+            aria-label="Courtside — go to home"
+          >
+            <CourtsideLogo className="group-hover:scale-105 transition-transform text-foreground" />
+          </Link>
+        </div>
 
         {/* Desktop nav */}
         <nav
           aria-label="Primary"
-          className="hidden md:flex items-center gap-7 font-medium text-sm uppercase tracking-wider"
+          className="hidden md:flex flex-1 items-center justify-center gap-7 font-medium text-[11px] uppercase tracking-[0.2em]"
         >
           {navItems
             .filter((i) => i.show)
@@ -84,10 +82,10 @@ export function Navbar() {
                 to={item.to}
                 end={item.to === "/"}
                 className={({ isActive }) =>
-                  `relative py-1 transition-colors ${
+                  `relative py-1 transition-all duration-300 font-black ${
                     isActive
                       ? "text-accent after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-0.5 after:bg-accent after:rounded-full"
-                      : "text-foreground/80 hover:text-primary"
+                      : "text-foreground/60 hover:text-primary"
                   }`
                 }
               >
@@ -97,24 +95,29 @@ export function Navbar() {
         </nav>
 
         {/* Right side actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2 w-[180px] flex-shrink-0">
           {user ? (
-            <>
-              <div className="hidden md:flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    await signOut();
-                    navigate("/");
-                  }}
-                  aria-label="Sign out of your account"
-                >
-                  <LogOut className="size-4" />
-                  <span>Sign out</span>
-                </Button>
+            <div className="flex items-center gap-3">
+              <div className="hidden lg:flex flex-col items-end mr-1">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold leading-none mb-1">Signed in as</span>
+                <span className="text-sm font-display tracking-tight text-foreground leading-none">
+                  {profile?.display_name || user.email?.split("@")[0]}
+                </span>
               </div>
-            </>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await signOut();
+                  navigate("/");
+                }}
+                aria-label="Sign out of your account"
+                className="hidden md:flex gap-2 border-border/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+              >
+                <LogOut className="size-4" />
+                <span>Sign out</span>
+              </Button>
+            </div>
           ) : (
             <Button
               variant="default"

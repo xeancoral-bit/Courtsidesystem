@@ -1,7 +1,13 @@
 -- Roles enum and table
-CREATE TYPE public.app_role AS ENUM ('admin', 'owner', 'user');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role' AND typnamespace = 'public'::regnamespace) THEN
+        CREATE TYPE public.app_role AS ENUM ('admin', 'owner', 'user');
+    END IF;
+END
+$$;
 
-CREATE TABLE public.user_roles (
+CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   role public.app_role NOT NULL DEFAULT 'user',
@@ -21,11 +27,12 @@ AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = _role)
 $$;
 
+DROP POLICY IF EXISTS "Users can view their own roles" ON public.user_roles;
 CREATE POLICY "Users can view their own roles" ON public.user_roles
   FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
 -- Profiles
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT,
   phone TEXT,
@@ -35,15 +42,20 @@ CREATE TABLE public.profiles (
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Profiles are viewable by owner" ON public.profiles;
 CREATE POLICY "Profiles are viewable by owner" ON public.profiles
   FOR SELECT TO authenticated USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE TO authenticated USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile" ON public.profiles
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
 
 -- Facilities
-CREATE TABLE public.facilities (
+CREATE TABLE IF NOT EXISTS public.facilities (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   owner_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
@@ -60,17 +72,24 @@ CREATE TABLE public.facilities (
 
 ALTER TABLE public.facilities ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Facilities are public" ON public.facilities;
 CREATE POLICY "Facilities are public" ON public.facilities
   FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Owners can insert facilities" ON public.facilities;
 CREATE POLICY "Owners can insert facilities" ON public.facilities
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = owner_id);
+
+DROP POLICY IF EXISTS "Owners can update their facilities" ON public.facilities;
 CREATE POLICY "Owners can update their facilities" ON public.facilities
   FOR UPDATE TO authenticated USING (auth.uid() = owner_id);
+
+DROP POLICY IF EXISTS "Owners can delete their facilities" ON public.facilities;
 CREATE POLICY "Owners can delete their facilities" ON public.facilities
   FOR DELETE TO authenticated USING (auth.uid() = owner_id);
 
 -- Bookings
-CREATE TABLE public.bookings (
+CREATE TABLE IF NOT EXISTS public.bookings (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   facility_id UUID NOT NULL REFERENCES public.facilities(id) ON DELETE CASCADE,
@@ -86,12 +105,19 @@ CREATE TABLE public.bookings (
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
 -- Public can read bookings (needed to show busy slots in calendar) — but only minimal use
+DROP POLICY IF EXISTS "Bookings visible to all for availability" ON public.bookings;
 CREATE POLICY "Bookings visible to all for availability" ON public.bookings
   FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users create their own bookings" ON public.bookings;
 CREATE POLICY "Users create their own bookings" ON public.bookings
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can cancel own bookings" ON public.bookings;
 CREATE POLICY "Users can cancel own bookings" ON public.bookings
   FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own bookings" ON public.bookings;
 CREATE POLICY "Users can delete own bookings" ON public.bookings
   FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
@@ -110,6 +136,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -119,7 +146,10 @@ CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
 
+DROP TRIGGER IF EXISTS profiles_updated ON public.profiles;
 CREATE TRIGGER profiles_updated BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS facilities_updated ON public.facilities;
 CREATE TRIGGER facilities_updated BEFORE UPDATE ON public.facilities
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
